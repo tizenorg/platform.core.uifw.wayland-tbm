@@ -236,6 +236,7 @@ wayland_tbm_client_uninit(struct wl_tbm* wl_tbm)
    tbm = wl_tbm_get_user_data(wl_tbm);
    if (tbm == NULL) {
       printf("Failed to uninit\n");
+      return;
    }
 
    if (tbm->device)

@@ -188,7 +188,6 @@ _send_authenticate_info(struct wl_client *client,
          if (errno != EACCES) 
          {
             printf("failed to get magic\n");
-            close(fd);
             wl_resource_post_error(resource,
                                     WL_TBM_ERROR_AUTHENTICATE_FAIL,
                                     "authenicate failed::get_magic");
@@ -199,7 +198,6 @@ _send_authenticate_info(struct wl_client *client,
       if (drmAuthMagic(tbm->fd, magic) < 0) 
       {
          printf("failed to authenticate magic\n");
-         close(fd);
          wl_resource_post_error(resource,
                                  WL_TBM_ERROR_AUTHENTICATE_FAIL,
                                  "authenicate failed::auth_magic");
@@ -217,7 +215,6 @@ _send_authenticate_info(struct wl_client *client,
                                                       &device_name))
       {
          printf("failed to get auth_info\n");
-         close(fd);
          wl_resource_post_error(resource,
                                  WL_TBM_ERROR_AUTHENTICATE_FAIL,
                                  "authenicate failed::auth_info");
@@ -428,7 +425,12 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name, int
    struct wl_tbm *tbm;
 
    tbm = calloc(1, sizeof *tbm);
-
+   if (!tbm)
+   {
+      printf("failed to alloc tbm\n");
+      return NULL;
+   }
+   
    tbm->display = display;
    tbm->device_name = strdup(device_name);
    tbm->fd = fd;
@@ -438,6 +440,8 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name, int
    tbm->bufmgr = tbm_bufmgr_init(tbm->fd);
    if (!tbm->bufmgr)
    {
+      if (tbm->device_name)
+         free(tbm->device_name);
       free(tbm);
       return NULL;
    }
