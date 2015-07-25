@@ -13,10 +13,10 @@
 #include <tbm_surface.h>
 #include <wayland-tbm-client-protocol.h>
 
-static struct wl_display* 
-connect_remote(int argc, char* argv[])
+static struct wl_display *
+_connect_remote(int argc, char *argv[])
 {
-   struct wl_display* dpy;
+   struct wl_display *dpy;
    const char *dpy_name = NULL;
 
    if (argc > 0) {
@@ -32,31 +32,42 @@ connect_remote(int argc, char* argv[])
    return dpy;
 }
 
-int main(int argc, char* argv[])
+int
+main(int argc, char *argv[])
 {
    struct wl_display *dpy;
    struct wl_display *host;
-   struct wl_tbm* tbm;
+   struct wl_tbm *tbm;
    const char *dpy_name;
-   
-   printf("Hello world\n");
+   void *bufmgr;
+
    dpy = wl_display_create();
    if (!dpy) {
       printf("[SRV] failed to create display\n");
       return -1;
    }
+
    dpy_name = wl_display_add_socket_auto(dpy);
    printf("[SRV] wl_display : %s\n", dpy_name);
 
-   host = connect_remote(argc, argv);
+   host = _connect_remote(argc, argv);
    if (!host) {
       printf("[SRV] failed to connect host\n");
+      wl_display_destroy(dpy);
       return -1;
    }
 
    tbm = wayland_tbm_embedded_server_init(dpy, host);
-   printf("[SRV] bufmgr:%p\n", wayland_tbm_server_get_bufmgr(tbm));
-   
+   if (!tbm) {
+      printf("[SRV] failed to initialize tbm embedded server\n");
+      wl_display_destroy(dpy);
+      return -1;
+   }
+
+   bufmgr = wayland_tbm_server_get_bufmgr(tbm);
+   printf("[SRV] bufmgr:%p\n", bufmgr);
+
    wl_display_run(dpy);
+
    return 0;
 }
