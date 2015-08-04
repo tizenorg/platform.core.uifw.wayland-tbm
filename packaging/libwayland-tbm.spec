@@ -7,6 +7,7 @@ Group:		Graphics & UI Framework/Wayland Window System
 URL:		http://www.tizen.org/
 
 Source: %name-%version.tar.gz
+Source1001:	%name.manifest
 BuildRequires:  autoconf automake
 BuildRequires:  libtool
 BuildRequires:  pkgconfig
@@ -47,6 +48,7 @@ Development header files for use with Wayland protocol
 
 %prep
 %setup -q
+cp %{SOURCE1001} .
 
 %build
 %reconfigure
@@ -62,16 +64,19 @@ make %{?_smp_mflags}
 %postun -n libwayland-tbm-server -p /sbin/ldconfig
 
 %files -n libwayland-tbm-server
+%manifest %{name}.manifest
 %license COPYING
 %defattr(-,root,root)
 %_libdir/libwayland-tbm-server.so.0*
 
 %files -n libwayland-tbm-client
+%manifest %{name}.manifest
 %license COPYING
 %defattr(-,root,root)
 %_libdir/libwayland-tbm-client.so.0*
 
 %files devel
+%manifest %{name}.manifest
 %defattr(-,root,root)
 %_includedir/wayland-tbm*.h
 %_libdir/libwayland-tbm*.so
