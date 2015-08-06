@@ -23,6 +23,7 @@ libwayland_tbm_server_la_LIBADD = \
 	$(WL_TBM_SERVER_LIBS)
 libwayland_tbm_server_la_SOURCES = \
 	wayland-tbm-protocol.c \
+	wayland-tbm-client.c \
 	wayland-tbm-server.c
 
 libwayland_tbm_client_la_LDFLAGS = -export-dynamic

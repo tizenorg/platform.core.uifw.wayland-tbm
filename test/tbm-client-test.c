@@ -12,7 +12,7 @@ main(int argc, char* argv[])
 {
    struct wl_display *dpy = NULL;
    const char *dpy_name = NULL;
-   struct wl_tbm *tbm = NULL;
+   struct wayland_tbm_client *tbm_client = NULL;
    tbm_surface_h tbm_surf = NULL;
    struct wl_buffer *buf = NULL;
    int res = -1;
@@ -24,12 +24,12 @@ main(int argc, char* argv[])
 
    dpy = wl_display_connect(dpy_name);
    if (!dpy) {
-      printf("[APP] failed to connect server\n");      
+      printf("[APP] failed to connect server\n");
       return -1;
    }
 
-   tbm = wayland_tbm_client_init(dpy);
-   if (!tbm) {
+   tbm_client = wayland_tbm_client_init(dpy);
+   if (!tbm_client) {
       printf("[APP] failed to client init\n");
       goto finish;
    }
@@ -40,7 +40,7 @@ main(int argc, char* argv[])
       goto finish;
    }
 
-   buf = wayland_tbm_client_create_buffer(tbm, tbm_surf);
+   buf = wayland_tbm_client_create_buffer(tbm_client, tbm_surf);
    if (!buf) {
       printf("[APP] failed to wayland_tbm_client_create_buffer\n");
       goto finish;
@@ -48,7 +48,7 @@ main(int argc, char* argv[])
    wl_display_flush(dpy);
 
    tbm_surface_destroy(tbm_surf);
-   wayland_tbm_client_destroy_buffer(buf);
+   wayland_tbm_client_destroy_buffer(tbm_client, buf);
 
    tbm_surf = NULL;
    buf = NULL;
@@ -58,8 +58,8 @@ main(int argc, char* argv[])
       printf("[APP] failed to tbm_surface_create\n");
       goto finish;
    }
-   
-   buf = wayland_tbm_client_create_buffer(tbm, tbm_surf);
+
+   buf = wayland_tbm_client_create_buffer(tbm_client, tbm_surf);
    if (!buf) {
       printf("[APP] failed to wayland_tbm_client_create_buffer\n");
       goto finish;
@@ -74,9 +74,9 @@ main(int argc, char* argv[])
    res = 0;
 
 finish:
-   if (buf) wayland_tbm_client_destroy_buffer(buf);
+   if (buf) wayland_tbm_client_destroy_buffer(tbm_client, buf);
    if (tbm_surf) tbm_surface_destroy(tbm_surf);
-   if (tbm) wayland_tbm_client_uninit(tbm);
+   if (tbm_client) wayland_tbm_client_deinit(tbm_client);
    if (dpy) wl_display_disconnect(dpy);
 
    return res;

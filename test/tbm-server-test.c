@@ -10,7 +10,7 @@ int
 main(int argc, char *argv[])
 {
    struct wl_display *dpy;
-   struct wl_tbm *tbm;
+   struct wayland_tbm_server *tbm_server;
    int fd;
    const char *dev_name;
    const char *dpy_name;
@@ -25,7 +25,7 @@ main(int argc, char *argv[])
    printf("[SRV] wl_display : %s\n", dpy_name);
 
    fd = drmOpen("exynos", NULL);
-   if (fd < 0) {      
+   if (fd < 0) {
       printf("[SRV] failed to open drm\n");
       wl_display_destroy(dpy);
       return -1;
@@ -34,8 +34,8 @@ main(int argc, char *argv[])
    dev_name = drmGetDeviceNameFromFd(fd);
    printf("[SRV] drm_device: %s\n", dev_name);
 
-   tbm = wayland_tbm_server_init(dpy, dev_name, fd, 0);
-   if (!tbm) {
+   tbm_server = wayland_tbm_server_init(dpy, dev_name, fd, 0);
+   if (!tbm_server) {
       printf("[SRV] failed to tbm_server init\n");
       wl_display_destroy(dpy);
       close(fd);
