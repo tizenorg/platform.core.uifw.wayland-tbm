@@ -1,10 +1,10 @@
 /*
 Copyright (C) 2015 Samsung Electronics co., Ltd. All Rights Reserved.
 
-Contact: 
-      SooChan Lim <sc1.lim@samsung.com>, 
+Contact:
+      SooChan Lim <sc1.lim@samsung.com>,
       Sangjin Lee <lsj119@samsung.com>,
-      Boram Park <boram1288.park@samsung.com>, 
+      Boram Park <boram1288.park@samsung.com>,
       Changyeon Lee <cyeon.lee@samsung.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -34,34 +34,22 @@ DEALINGS IN THE SOFTWARE.
 extern "C" {
 #endif
 
-#include <tbm_surface.h>
 #include <wayland-client.h>
+#include <tbm_surface.h>
 
-struct wl_tbm;
+struct wayland_tbm_client;
 
-struct wl_tbm*
-wayland_tbm_client_init(struct wl_display* display);
+struct wayland_tbm_client *wayland_tbm_client_init(struct wl_display* display);
+void                       wayland_tbm_client_deinit(struct wayland_tbm_client* tbm_client);
 
-void
-wayland_tbm_client_uninit(struct wl_tbm* tbm);
+struct wl_buffer *wayland_tbm_client_create_buffer(struct wayland_tbm_client* tbm_client, tbm_surface_h surface);
+void              wayland_tbm_client_destroy_buffer(struct wayland_tbm_client *tbm_client, struct wl_buffer* buffer);
 
-const char*
-wayland_tbm_client_get_device_name(struct wl_tbm* tbm);
-
-uint32_t
-wayland_tbm_client_get_capability(struct wl_tbm* tbm);
-
-void*
-wayland_tbm_client_get_bufmgr(struct wl_tbm* tbm);
-
-struct wl_buffer*
-wayland_tbm_client_create_buffer(struct wl_tbm* tbm, tbm_surface_h surface);
-
-void
-wayland_tbm_client_destroy_buffer(struct wl_buffer* buffer);
-
-tbm_surface_h
-wayland_tbm_client_get_surface(struct wl_buffer* buffer);
+const char     *wayland_tbm_client_get_device_name(struct wayland_tbm_client* tbm_client);
+uint32_t        wayland_tbm_client_get_capability(struct wayland_tbm_client* tbm_client);
+void           *wayland_tbm_client_get_bufmgr(struct wayland_tbm_client* tbm_client);
+tbm_surface_h   wayland_tbm_client_get_surface(struct wayland_tbm_client *tbm_client, struct wl_buffer* buffer)
+;
 
 #ifdef  __cplusplus
 }

@@ -27,25 +27,31 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef WAYLAND_TBM_SERVER_H
-#define WAYLAND_TBM_SERVER_H
+#ifndef WAYLAND_TBM_INT_H
+#define WAYLAND_TBM_INT_H
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#include <wayland-server.h>
-#include <tbm_surface.h>
+#define WL_TBM_LOG(...)  fprintf (stderr, __VA_ARGS__)
 
-struct wayland_tbm_server;
+/* check condition */
+#define WL_TBM_RETURN_IF_FAIL(cond) {\
+    if (!(cond)) {\
+        WL_TBM_LOG ("[%s] : '%s' failed.\n", __FUNCTION__, #cond);\
+        return;\
+    }\
+}
+#define WL_TBM_RETURN_VAL_IF_FAIL(cond, val) {\
+    if (!(cond)) {\
+        WL_TBM_LOG ("[%s] : '%s' failed.\n", __FUNCTION__, #cond);\
+        return val;\
+    }\
+}
 
-struct wayland_tbm_server *wayland_tbm_server_init(struct wl_display *display, const char *device_name, int fd, uint32_t flags);
-struct wayland_tbm_server *wayland_tbm_server_embedded_init(struct wl_display *embedded, struct wl_display *host);
-void                       wayland_tbm_server_deinit(struct wayland_tbm_server *tbm_srv);
-
-
-void          *wayland_tbm_server_get_bufmgr(struct wayland_tbm_server *tbm_srv);
-tbm_surface_h  wayland_tbm_server_get_surface(struct wayland_tbm_server *tbm_srv, struct wl_resource *resource);
+/* internal functions */
+int32_t wayland_tbm_client_get_auth_fd(struct wayland_tbm_client *tbm_client);
 
 
 #ifdef  __cplusplus
