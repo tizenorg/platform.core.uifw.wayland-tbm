@@ -48,8 +48,7 @@ void              wayland_tbm_client_destroy_buffer(struct wayland_tbm_client *t
 const char     *wayland_tbm_client_get_device_name(struct wayland_tbm_client* tbm_client);
 uint32_t        wayland_tbm_client_get_capability(struct wayland_tbm_client* tbm_client);
 void           *wayland_tbm_client_get_bufmgr(struct wayland_tbm_client* tbm_client);
-tbm_surface_h   wayland_tbm_client_get_surface(struct wayland_tbm_client *tbm_client, struct wl_buffer* buffer)
-;
+tbm_surface_h   wayland_tbm_client_get_surface(struct wayland_tbm_client *tbm_client, struct wl_buffer* buffer);
 
 #ifdef  __cplusplus
 }
