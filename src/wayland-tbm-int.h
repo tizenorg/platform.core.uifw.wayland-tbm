@@ -51,8 +51,13 @@ extern "C" {
 }
 
 /* internal functions */
-int32_t wayland_tbm_client_get_auth_fd(struct wayland_tbm_client *tbm_client);
+int32_t        _wayland_tbm_client_get_auth_fd(struct wayland_tbm_client *tbm_client);
+struct wl_tbm *_wayland_tbm_client_get_wl_tbm(struct wayland_tbm_client *tbm_client);
 
+void         _wayland_tbm_client_reset_embedded_auth_info(struct wayland_tbm_client *tbm_client);
+int32_t      _wayland_tbm_client_get_embedded_auth_fd(struct wayland_tbm_client *tbm_client);
+uint32_t     _wayland_tbm_client_get_embedded_capability(struct wayland_tbm_client *tbm_client);
+const char  *_wayland_tbm_client_get_embedded_device_name(struct wayland_tbm_client *tbm_client);
 
 #ifdef  __cplusplus
 }

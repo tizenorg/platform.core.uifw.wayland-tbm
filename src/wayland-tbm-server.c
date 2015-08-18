@@ -50,6 +50,8 @@ DEALINGS IN THE SOFTWARE.
 
 #include "wayland-tbm-int.h"
 
+//#define WL_TBM_SERVER_DEBUG
+
 #define MIN(x,y) (((x)<(y))?(x):(y))
 
 struct wayland_tbm_server {
@@ -61,8 +63,10 @@ struct wayland_tbm_server {
     uint32_t flags;
     tbm_bufmgr bufmgr;
 
+    /* for embedded serverc client */
     struct wayland_tbm_client *tbm_client;
     struct wl_display *host_dpy;
+    struct wl_tbm *wl_tbm;
 
     struct wl_buffer_interface buffer_interface;
 };
@@ -143,59 +147,87 @@ _create_buffer(struct wl_client *client, struct wl_resource *resource,
 }
 
 static void
-_wayland_tbm_server_impl_get_authentication_info(struct wl_client *client,
-       struct wl_resource *resource)
+_send_embedded_server_auth_info(struct wayland_tbm_client *tbm_client, struct wl_resource *resource, struct wl_display *host_dpy)
 {
-    struct wayland_tbm_server *tbm_srv = wl_resource_get_user_data(resource);
+    struct wl_tbm *wl_tbm = NULL;
+    int fd = -1;
+    uint32_t capabilities;
+    const char* device_name = NULL;
+
+    wl_tbm = _wayland_tbm_client_get_wl_tbm(tbm_client);
+    if (!wl_tbm) {
+        WL_TBM_LOG("fail to send embedded server auth infor : no wl_tbm.\n");
+        return;
+    }
+
+    /* get the authentication from the display server */
+    wl_tbm_get_authentication_info(wl_tbm);
+    wl_display_roundtrip(host_dpy);
+
+    fd = _wayland_tbm_client_get_embedded_auth_fd(tbm_client);
+    capabilities = _wayland_tbm_client_get_embedded_capability(tbm_client);
+    device_name = _wayland_tbm_client_get_embedded_device_name(tbm_client);
+
+#ifdef WL_TBM_SERVER_DEBUG
+    WL_TBM_LOG("[%s]: send embedded auth: device_name=%p, capabilities=%d, fd=%d\n",
+        __func__, device_name, capabilities, fd);
+#endif
+
+    /* send */
+    wl_tbm_send_authentication_info(resource, device_name, capabilities, fd);
+
+    /* reset the auth information */
+    _wayland_tbm_client_reset_embedded_auth_info(tbm_client);
+}
+
+static void
+_send_server_auth_info(struct wayland_tbm_server *tbm_srv, struct wl_resource *resource)
+{
     int fd = -1;
     uint32_t capabilities;
     char* device_name = NULL;
     drm_magic_t magic = 0;
 
-    /* if display server is the client of the host display server, for embedded server */
-    if (tbm_srv->tbm_client) {
-        fd = tbm_srv->fd;
-        capabilities = tbm_srv->flags;
-        device_name = tbm_srv->device_name;
-
-    } else {
-        fd = open(tbm_srv->device_name, O_RDWR | O_CLOEXEC);
-        if (fd == -1 && errno == EINVAL) {
-            fd = open(tbm_srv->device_name, O_RDWR);
-            if (fd != -1)
-                fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
-        }
-
-        if (fd < 0) {
-            WL_TBM_LOG("failed to open drm\n");
-
-            wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
-                    "authenicate failed::open_drm");
-            goto fini;
-        }
-
-        if (drmGetMagic(fd, &magic) < 0) {
-            if (errno != EACCES) {
-                WL_TBM_LOG("failed to get magic\n");
-
-                wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
-                        "authenicate failed::get_magic");
-                goto fini;
-            }
-        }
-
-        if (drmAuthMagic(tbm_srv->fd, magic) < 0) {
-            WL_TBM_LOG("failed to authenticate magic\n");
-
-            wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
-                    "authenicate failed::auth_magic");
-            goto fini;
-        }
-
-        capabilities = tbm_srv->flags;
-        device_name = tbm_srv->device_name;
-
+    fd = open(tbm_srv->device_name, O_RDWR | O_CLOEXEC);
+    if (fd == -1 && errno == EINVAL) {
+        fd = open(tbm_srv->device_name, O_RDWR);
+        if (fd != -1)
+            fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
     }
+
+    if (fd < 0) {
+        WL_TBM_LOG("failed to open drm : device_name, %s\n", tbm_srv->device_name);
+
+        wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
+                "authenicate failed::open_drm");
+        goto fini;
+    }
+
+    if (drmGetMagic(fd, &magic) < 0) {
+        if (errno != EACCES) {
+            WL_TBM_LOG("failed to get magic\n");
+
+            wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
+                    "authenicate failed::get_magic");
+            goto fini;
+        }
+    }
+
+    if (drmAuthMagic(tbm_srv->fd, magic) < 0) {
+        WL_TBM_LOG("failed to authenticate magic\n");
+
+        wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
+                "authenicate failed::auth_magic");
+        goto fini;
+    }
+
+    capabilities = tbm_srv->flags;
+    device_name = tbm_srv->device_name;
+
+#ifdef WL_TBM_SERVER_DEBUG
+    WL_TBM_LOG("[%s]: send auth: device_name=%p, capabilities=%d, fd=%d\n",
+        __func__, device_name, capabilities, fd);
+#endif
 
     /* send */
     wl_tbm_send_authentication_info(resource, device_name, capabilities, fd);
@@ -206,6 +238,21 @@ fini:
 
     if (device_name && device_name != tbm_srv->device_name)
         free(device_name);
+
+}
+
+static void
+_wayland_tbm_server_impl_get_authentication_info(struct wl_client *client,
+       struct wl_resource *resource)
+{
+    struct wayland_tbm_server *tbm_srv = wl_resource_get_user_data(resource);
+
+    /* if display server is the client of the host display server, for embedded server */
+    if (tbm_srv->tbm_client) {
+        _send_embedded_server_auth_info(tbm_srv->tbm_client, resource, tbm_srv->host_dpy);
+    } else {
+        _send_server_auth_info(tbm_srv, resource);
+    }
 }
 
 static void
@@ -223,6 +270,10 @@ _wayland_tbm_server_impl_create_buffer(struct wl_client *client,
     tbm_surface_info_s info;
     int bpp;
     int numPlane, numName = 0;
+
+#ifdef WL_TBM_SERVER_DEBUG
+    WL_TBM_LOG("[%s]: trying.\n", __func__);
+#endif
 
     bpp = tbm_surface_internal_get_bpp(format);
     numPlane = tbm_surface_internal_get_num_planes(format);
@@ -264,7 +315,6 @@ _wayland_tbm_server_impl_create_buffer(struct wl_client *client,
     names[2] = buf2;
 
     _create_buffer(client, resource, id, &info, 0, names, numName, flags);
-
 }
 
 static void
@@ -282,6 +332,10 @@ _wayland_tbm_server_impl_create_buffer_with_fd(struct wl_client *client,
     tbm_surface_info_s info;
     int bpp;
     int numPlane, numName = 0;
+
+#ifdef WL_TBM_SERVER_DEBUG
+    WL_TBM_LOG("[%s]: trying.\n", __func__);
+#endif
 
     bpp = tbm_surface_internal_get_bpp(format);
     numPlane = tbm_surface_internal_get_num_planes(format);
@@ -398,11 +452,12 @@ wayland_tbm_server_embedded_init(struct wl_display *display, struct wl_display *
 
     tbm_srv->display = display;
     tbm_srv->device_name = strdup(wayland_tbm_client_get_device_name(tbm_client));
-    tbm_srv->fd = wayland_tbm_client_get_auth_fd(tbm_client); // TODO: check dup or not????
+    tbm_srv->fd = _wayland_tbm_client_get_auth_fd(tbm_client); // TODO: check dup or not????
     tbm_srv->flags = wayland_tbm_client_get_capability(tbm_client);
     tbm_srv->bufmgr = tbm_bufmgr_init(-1);
     tbm_srv->tbm_client = tbm_client;
     tbm_srv->host_dpy = host_display;
+    tbm_srv->wl_tbm = _wayland_tbm_client_get_wl_tbm(tbm_client);
 
     tbm_srv->buffer_interface.destroy = _buffer_destroy;
     tbm_srv->wl_tbm_global = wl_global_create(display, &wl_tbm_interface, 1,

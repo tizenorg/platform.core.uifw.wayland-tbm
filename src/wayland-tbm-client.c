@@ -41,6 +41,9 @@ DEALINGS IN THE SOFTWARE.
 #include "wayland-tbm-client-protocol.h"
 #include "wayland-tbm-int.h"
 
+
+//#define WL_TBM_CLIENT_DEBUG
+
 struct wayland_tbm_client
 {
     struct wl_display* dpy;
@@ -51,6 +54,12 @@ struct wayland_tbm_client
     int32_t auth_fd;
     uint32_t capabilities;
     char *device;
+
+    /* This authenticated information is for the client of the embedded server.
+     */
+    int32_t embedded_auth_fd;
+    uint32_t embedded_capabilities;
+    char *embedded_device;
 };
 
 static void
@@ -62,10 +71,29 @@ handle_tbm_authentication_info(void *data,
 {
     struct wayland_tbm_client *tbm_client = (struct wayland_tbm_client *)data;
 
-    tbm_client->auth_fd = auth_fd;
-    tbm_client->capabilities = capabilities;
-    if (device_name)
-        tbm_client->device = strndup(device_name, 256);
+    if (tbm_client->auth_fd == -1 ) {
+#ifdef WL_TBM_CLIENT_DEBUG
+        WL_TBM_LOG("[%s]: get the client auth info\n", __func__);
+#endif
+        /* client authentication infomation */
+        tbm_client->auth_fd = auth_fd;
+        tbm_client->capabilities = capabilities;
+        if (device_name)
+            tbm_client->device = strndup(device_name, 256);
+    } else {
+#ifdef WL_TBM_CLIENT_DEBUG
+        WL_TBM_LOG("[%s]: get the embedded server client auth info\n", __func__);
+#endif
+        /* authentication information of embedded server client */
+        tbm_client->embedded_auth_fd = auth_fd;
+        tbm_client->embedded_capabilities = capabilities;
+        tbm_client->embedded_device = strndup(device_name, 256);
+    }
+
+#ifdef WL_TBM_CLIENT_DEBUG
+    WL_TBM_LOG("[%s]: tbm_client=%p, wl_tbm=%p, device_name=%s, capabilities=%d, auth_fd=%d\n",
+        __func__, tbm_client, wl_tbm, device_name, capabilities, auth_fd);
+#endif
 }
 
 static const struct wl_tbm_listener wl_tbm_client_listener = {
@@ -92,6 +120,11 @@ _wayland_tbm_client_registry_handle_global(void *data, struct wl_registry *regis
         //   WL_TBM_LOG("failed to get auth_info\n");
         //   tbm_client->wl_tbm = NULL;
         //   return;
+
+#ifdef WL_TBM_CLIENT_DEBUG
+        WL_TBM_LOG("[%s]: tbm_client=%p, wl_tbm=%p, device_name=%s, capabilities=%d, auth_fd=%d\n",
+               __func__, tbm_client, tbm_client->wl_tbm, tbm_client->device, tbm_client->capabilities, tbm_client->auth_fd);
+#endif
 
         tbm_client->bufmgr = tbm_bufmgr_init(tbm_client->auth_fd);
         if (!tbm_client->bufmgr) {
@@ -121,6 +154,7 @@ wayland_tbm_client_init(struct wl_display* display)
 
     tbm_client->dpy = display;
     tbm_client->auth_fd = -1; /* initialize */
+    tbm_client->embedded_auth_fd = -1; /* for embedded server client */
 
     tbm_client->wl_queue = wl_display_create_queue(display);
     WL_TBM_RETURN_VAL_IF_FAIL(tbm_client->wl_queue != NULL, NULL);
@@ -136,6 +170,11 @@ wayland_tbm_client_init(struct wl_display* display)
     }
 
     wl_proxy_set_queue((struct wl_proxy *)wl_registry, tbm_client->wl_queue);
+
+#ifdef WL_TBM_CLIENT_DEBUG
+    WL_TBM_LOG("[%s]: tbm_client=%p, display=%p\n", __func__, tbm_client, display);
+#endif
+
     wl_registry_add_listener(wl_registry, &registry_listener, tbm_client);
     wl_display_roundtrip_queue(display, tbm_client->wl_queue);
 
@@ -161,7 +200,10 @@ void
 wayland_tbm_client_deinit(struct wayland_tbm_client *tbm_client)
 {
     if (!tbm_client)
-    return;
+        return;
+
+    /* clear the embedded server client auth information */
+    _wayland_tbm_client_reset_embedded_auth_info(tbm_client);
 
     if (tbm_client->wl_tbm) {
         wl_tbm_set_user_data(tbm_client->wl_tbm, NULL);
@@ -325,14 +367,6 @@ wayland_tbm_client_get_bufmgr(struct wayland_tbm_client *tbm_client)
     return (void *)tbm_client->bufmgr;
 }
 
-int32_t
-wayland_tbm_client_get_auth_fd(struct wayland_tbm_client *tbm_client)
-{
-    WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, -1);
-
-    return tbm_client->auth_fd;
-}
-
 tbm_surface_h
 wayland_tbm_client_get_surface(struct wayland_tbm_client *tbm_client, struct wl_buffer* buffer)
 {
@@ -343,4 +377,63 @@ wayland_tbm_client_get_surface(struct wayland_tbm_client *tbm_client, struct wl_
 
     return (tbm_surface_h)wl_buffer_get_user_data(buffer);
 }
+
+int32_t
+_wayland_tbm_client_get_auth_fd(struct wayland_tbm_client *tbm_client)
+{
+    WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, -1);
+
+    return tbm_client->auth_fd;
+}
+
+struct wl_tbm *
+_wayland_tbm_client_get_wl_tbm(struct wayland_tbm_client *tbm_client)
+{
+    WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
+
+    return tbm_client->wl_tbm;
+}
+
+void
+_wayland_tbm_client_reset_embedded_auth_info(struct wayland_tbm_client *tbm_client)
+{
+    WL_TBM_RETURN_IF_FAIL(tbm_client != NULL);
+
+    if (tbm_client->embedded_auth_fd > 0) {
+        close(tbm_client->embedded_auth_fd);
+        tbm_client->embedded_auth_fd = -1;
+    }
+
+    tbm_client->embedded_capabilities = 0;
+
+    if (tbm_client->embedded_device != NULL) {
+        free(tbm_client->embedded_device);
+        tbm_client->embedded_device = NULL;
+    }
+}
+
+int32_t
+_wayland_tbm_client_get_embedded_auth_fd(struct wayland_tbm_client *tbm_client)
+{
+    WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, -1);
+
+    return tbm_client->embedded_auth_fd;
+}
+
+uint32_t
+_wayland_tbm_client_get_embedded_capability(struct wayland_tbm_client *tbm_client)
+{
+    WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, 0);
+
+    return tbm_client->embedded_capabilities;
+}
+
+const char*
+_wayland_tbm_client_get_embedded_device_name(struct wayland_tbm_client *tbm_client)
+{
+    WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
+
+    return (const char *)tbm_client->embedded_device;
+}
+
 
