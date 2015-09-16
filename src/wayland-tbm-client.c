@@ -333,15 +333,10 @@ wayland_tbm_client_destroy_buffer(struct wayland_tbm_client *tbm_client, struct 
     WL_TBM_RETURN_IF_FAIL(tbm_client != NULL);
     WL_TBM_RETURN_IF_FAIL(buffer != NULL);
 
-    tbm_surface_h surface;
-
     // TODO: valid check if the buffer is from this tbm_client???
 
-    surface = (tbm_surface_h)wl_buffer_get_user_data(buffer);
     wl_buffer_set_user_data(buffer, NULL);
     wl_buffer_destroy(buffer);
-    if (surface)
-        tbm_surface_destroy(surface);
 }
 
 
