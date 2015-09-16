@@ -311,6 +311,11 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
 
     wl_buffer_set_user_data(wl_buffer, surface);
 
+    for (i = 0; i < TBM_SURF_PLANE_MAX; i++) {
+        if (is_fd == 1 && (bufs[i] > 0))
+            close(bufs[i]);
+    }
+
     return wl_buffer;
 
 err:
