@@ -310,6 +310,7 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
     }
 
     wl_buffer_set_user_data(wl_buffer, surface);
+    tbm_surface_internal_ref(surface);
 
     for (i = 0; i < TBM_SURF_PLANE_MAX; i++) {
         if (is_fd == 1 && (bufs[i] > 0))
@@ -344,7 +345,7 @@ wayland_tbm_client_destroy_buffer(struct wayland_tbm_client *tbm_client, struct 
     wl_buffer_set_user_data(buffer, NULL);
     wl_buffer_destroy(buffer);
     if (surface)
-        tbm_surface_destroy(surface);
+        tbm_surface_internal_unref(surface);
 }
 
 
