@@ -321,9 +321,6 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
 
 err:
     for (i = 0; i < TBM_SURF_PLANE_MAX; i++) {
-        if (bos[i])
-            tbm_bo_unref(bos[i]);
-
         if (is_fd == 1 && (bufs[i] > 0))
             close(bufs[i]);
     }
