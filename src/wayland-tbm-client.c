@@ -231,8 +231,7 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
     int ret = -1;
     tbm_surface_info_s info;
     int num_buf;
-    tbm_bo bos[TBM_SURF_PLANE_MAX] = {NULL,};
-    int bufs[TBM_SURF_PLANE_MAX] = {0,};
+    int bufs[TBM_SURF_PLANE_MAX] = {-1,};
     int is_fd = -1;
     struct wl_buffer* wl_buffer = NULL;
     int i;
@@ -249,36 +248,38 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
     }
 
     num_buf = tbm_surface_internal_get_num_bos(surface);
-    for (i = 0; i < num_buf; i++) {
-        bos[i] = tbm_surface_internal_get_bo(surface, i);
-        if (bos[i] == NULL) {
-            WL_TBM_LOG("Failed to get bo from surface\n");
+    if (num_buf == 0) {
+        WL_TBM_LOG("surface doesn't have any bo.\n");
         goto err;
     }
 
-    //check support export fd
-    if (is_fd == -1) {
-        bufs[i] = tbm_bo_export_fd(bos[i]);
-        if (bufs[i]) {
-            is_fd = 1;
-        } else {
-            is_fd = 0;
-            bufs[i] = tbm_bo_export(bos[i]);
-        }
-    } else if(is_fd == 1) {
-        bufs[i] = tbm_bo_export_fd(bos[i]);
-    } else
-        bufs[i] = tbm_bo_export(bos[i]);
-
-        if (!bufs[i]) {
-            WL_TBM_LOG("Failed to export(is_fd:%d)\n", is_fd);
+    for (i = 0; i < num_buf; i++) {
+        tbm_bo bo = tbm_surface_internal_get_bo(surface, i);
+        if (bo == NULL) {
+            WL_TBM_LOG("Failed to get bo from surface\n");
             goto err;
         }
-    }
 
-    if (num_buf == 0 || is_fd == -1) {
-        WL_TBM_LOG("Failed to export(is_fd:%d)\n", is_fd);
-        goto err;
+        /* try to get fd first */
+        if (is_fd == -1 || is_fd == 1) {
+            bufs[i] = tbm_bo_export_fd(bo);
+            if (bufs[i] >= 0)
+              is_fd = 1;
+        }
+
+        /* if fail to get fd, try to get name second */
+        if (is_fd == -1 || is_fd == 0) {
+            bufs[i] = tbm_bo_export(bo);
+            if (bufs[i] > 0)
+              is_fd = 0;
+        }
+
+        if (is_fd == -1 ||
+            (is_fd == 1 && bufs[i] < 0) ||
+            (is_fd == 0 && bufs[i] <= 0)) {
+            WL_TBM_LOG("Failed to export(is_fd:%d, bufs:%d)\n", is_fd, bufs[i]);
+            goto err;
+        }
     }
 
     if (is_fd == 1)
@@ -290,8 +291,9 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
                         info.planes[1].offset, info.planes[1].stride,
                         tbm_surface_internal_get_plane_bo_idx(surface, 2),
                         info.planes[2].offset, info.planes[2].stride,
-                        0,
-                        num_buf, bufs[0], bufs[1], bufs[2]);
+                        0, num_buf, bufs[0],
+                        (bufs[1] == -1) ? bufs[0] : bufs[1],
+                        (bufs[2] == -1) ? bufs[0] : bufs[2]);
     else
         wl_buffer = wl_tbm_create_buffer(tbm_client->wl_tbm,
                         info.width, info.height, info.format, info.num_planes,
@@ -310,7 +312,7 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
     }
 
     for (i = 0; i < TBM_SURF_PLANE_MAX; i++) {
-        if (is_fd == 1 && (bufs[i] > 0))
+        if (is_fd == 1 && (bufs[i] >= 0))
             close(bufs[i]);
     }
 
@@ -318,7 +320,7 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
 
 err:
     for (i = 0; i < TBM_SURF_PLANE_MAX; i++) {
-        if (is_fd == 1 && (bufs[i] > 0))
+        if (is_fd == 1 && (bufs[i] >= 0))
             close(bufs[i]);
     }
 
