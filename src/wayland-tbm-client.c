@@ -309,9 +309,6 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
         goto err;
     }
 
-    wl_buffer_set_user_data(wl_buffer, surface);
-    tbm_surface_internal_ref(surface);
-
     for (i = 0; i < TBM_SURF_PLANE_MAX; i++) {
         if (is_fd == 1 && (bufs[i] > 0))
             close(bufs[i]);
@@ -334,15 +331,10 @@ wayland_tbm_client_destroy_buffer(struct wayland_tbm_client *tbm_client, struct 
     WL_TBM_RETURN_IF_FAIL(tbm_client != NULL);
     WL_TBM_RETURN_IF_FAIL(buffer != NULL);
 
-    tbm_surface_h surface;
-
     // TODO: valid check if the buffer is from this tbm_client???
 
-    surface = (tbm_surface_h)wl_buffer_get_user_data(buffer);
     wl_buffer_set_user_data(buffer, NULL);
     wl_buffer_destroy(buffer);
-    if (surface)
-        tbm_surface_internal_unref(surface);
 }
 
 
@@ -368,17 +360,6 @@ wayland_tbm_client_get_bufmgr(struct wayland_tbm_client *tbm_client)
     WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
 
     return (void *)tbm_client->bufmgr;
-}
-
-tbm_surface_h
-wayland_tbm_client_get_surface(struct wayland_tbm_client *tbm_client, struct wl_buffer* buffer)
-{
-    WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
-    WL_TBM_RETURN_VAL_IF_FAIL(buffer != NULL, NULL);
-
-    // TODO: valid check if the buffer is from this tbm_client???
-
-    return (tbm_surface_h)wl_buffer_get_user_data(buffer);
 }
 
 int32_t
