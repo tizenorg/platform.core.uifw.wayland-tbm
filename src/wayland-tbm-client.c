@@ -231,7 +231,7 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client, tbm_surf
     int ret = -1;
     tbm_surface_info_s info;
     int num_buf;
-    int bufs[TBM_SURF_PLANE_MAX] = {-1,};
+    int bufs[TBM_SURF_PLANE_MAX] = {-1, -1, -1, -1};
     int is_fd = -1;
     struct wl_buffer* wl_buffer = NULL;
     int i;
