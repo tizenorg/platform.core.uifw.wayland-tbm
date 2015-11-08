@@ -67,14 +67,17 @@ struct wayland_tbm_server {
     struct wayland_tbm_client *tbm_client;
     struct wl_display *host_dpy;
     struct wl_tbm *wl_tbm;
-
-    struct wl_buffer_interface buffer_interface;
 };
 
 struct wl_tbm_buffer {
     struct wl_resource *resource;
     tbm_surface_h tbm_surface;
     int flags;
+};
+
+static void _buffer_destroy(struct wl_client *client, struct wl_resource *resource);
+static const struct wl_buffer_interface _wayland_tbm_buffer_impementation = {
+   _buffer_destroy
 };
 
 static void
@@ -142,7 +145,7 @@ _create_buffer(struct wl_client *client, struct wl_resource *resource,
     }
 
     wl_resource_set_implementation(buffer->resource,
-            (void (**)(void)) &tbm_srv->buffer_interface,
+            (void (**)(void)) &_wayland_tbm_buffer_impementation,
             buffer, _destroy_buffer);
 }
 
@@ -428,7 +431,6 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name, int
         return NULL;
     }
 
-    tbm_srv->buffer_interface.destroy = _buffer_destroy;
     tbm_srv->wl_tbm_global = wl_global_create(display, &wl_tbm_interface, 1,
                                      tbm_srv, _wayland_tbm_server_bind_cb);
 
@@ -459,7 +461,6 @@ wayland_tbm_server_embedded_init(struct wl_display *display, struct wl_display *
     tbm_srv->host_dpy = host_display;
     tbm_srv->wl_tbm = _wayland_tbm_client_get_wl_tbm(tbm_client);
 
-    tbm_srv->buffer_interface.destroy = _buffer_destroy;
     tbm_srv->wl_tbm_global = wl_global_create(display, &wl_tbm_interface, 1,
                                      tbm_srv, _wayland_tbm_server_bind_cb);
 
@@ -491,7 +492,7 @@ wayland_tbm_server_get_surface(struct wayland_tbm_server *tbm_srv, struct wl_res
         return NULL;
 
     if (wl_resource_instance_of(resource, &wl_buffer_interface,
-                    &tbm_srv->buffer_interface)) {
+                    &_wayland_tbm_buffer_impementation)) {
         wl_buffer = wl_resource_get_user_data(resource);
         return wl_buffer->tbm_surface;
     }
