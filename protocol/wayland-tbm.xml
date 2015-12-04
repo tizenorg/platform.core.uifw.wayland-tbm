@@ -83,10 +83,26 @@
     <request name="get_authentication_info">
     </request>
 
+    <!-- monitor the tbm_bo of the clients and the server -->
+    <request name="request_tbm_monitor">
+      <arg name="command" type="int"/>
+      <arg name="trace_command" type="int"/>
+      <arg name="target" type="int"/>
+      <arg name="pid" type="int"/>
+    </request>
+
     <event name="authentication_info">
     	<arg name="device_name" type="string"/>
     	<arg name="capabilities" type="uint"/>
     	<arg name="auth_fd" type="fd"/>
+    </event>
+
+    <!-- monitor the tbm_bo of the client -->
+    <event name="monitor_client_tbm_bo">
+      <arg name="command" type="int"/>
+      <arg name="trace_command" type="int"/>
+      <arg name="target" type="int"/>
+      <arg name="pid" type="int"/>
     </event>
     
   </interface>
