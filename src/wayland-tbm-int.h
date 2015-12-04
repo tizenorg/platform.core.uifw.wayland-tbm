@@ -49,6 +49,12 @@ extern "C" {
         return val;\
     }\
 }
+#define WL_TBM_GOTO_IF_FAIL(cond, dst) {\
+    if (!(cond)) {\
+        WL_TBM_LOG ("[%s] : '%s' failed.\n", __FUNCTION__, #cond);\
+        goto dst;\
+    }\
+}
 
 /* internal functions */
 int32_t        _wayland_tbm_client_get_auth_fd(struct wayland_tbm_client *tbm_client);
