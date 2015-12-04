@@ -1,6 +1,6 @@
 MAINTAINERCLEANFILES = Makefile.in
 
-SUBDIRS = src test
+SUBDIRS = src test tool
 
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = \

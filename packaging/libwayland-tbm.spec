@@ -74,6 +74,7 @@ make %{?_smp_mflags}
 %license COPYING
 %defattr(-,root,root)
 %_libdir/libwayland-tbm-client.so.0*
+%{_bindir}/wayland-tbm-monitor
 
 %files devel
 %manifest %{name}.manifest

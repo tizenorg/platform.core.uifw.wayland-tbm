@@ -2,8 +2,7 @@ lib_LTLIBRARIES = libwayland-tbm-server.la libwayland-tbm-client.la
 
 AM_CFLAGS = \
 	$(GCC_CFLAGS) \
- 	-I$(top_srcdir)/src	\
-	-I$(top_srcdir)/protocol
+    -I$(top_srcdir)/src
 
 include_HEADERS = \
 	wayland-tbm-server.h \

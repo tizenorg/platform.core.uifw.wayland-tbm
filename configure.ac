@@ -24,6 +24,7 @@ AC_CONFIG_FILES([
 	Makefile
     src/Makefile
     test/Makefile
+    tool/Makefile
 	wayland-tbm-server.pc
 	wayland-tbm-client.pc
 ])

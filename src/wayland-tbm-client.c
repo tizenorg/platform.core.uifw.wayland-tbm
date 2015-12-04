@@ -63,6 +63,37 @@ struct wayland_tbm_client
 };
 
 static void
+handle_tbm_monitor_client_tbm_bo(void *data,
+				  struct wl_tbm *wl_tbm,
+				  int32_t command,
+				  int32_t trace_command,
+                  int32_t target,
+				  int32_t pid)
+{
+    struct wayland_tbm_client *tbm_client = (struct wayland_tbm_client *)data;
+
+#ifdef WL_TBM_CLIENT_DEBUG
+    WL_TBM_LOG("[%s]: command=%d, trace_command=%d, pid=%d\n", __func__, command, trace_command, pid);
+#endif
+
+    if (command == WL_TBM_MONITOR_COMMAND_SHOW) {
+        if (target == WL_TBM_MONITOR_TARGET_CLIENT) {
+            if (getpid() == pid)
+                tbm_bufmgr_debug_show(tbm_client->bufmgr);
+        } else if (target == WL_TBM_MONITOR_TARGET_ALL) {
+			    tbm_bufmgr_debug_show(tbm_client->bufmgr);
+        } else {
+			WL_TBM_LOG("[%s]: Error target is not available. target = %d\n", __func__, target);
+        }
+    } else if (command == WL_TBM_MONITOR_COMMAND_TRACE) {
+		WL_TBM_LOG("[%s]: TRACE is not implemented.\n", __func__);
+    } else {
+			WL_TBM_LOG("[%s]: Error command is not available. command = %d\n", __func__, command);
+    }
+
+}
+
+static void
 handle_tbm_authentication_info(void *data,
                 struct wl_tbm *wl_tbm,
                 const char *device_name,
@@ -97,7 +128,8 @@ handle_tbm_authentication_info(void *data,
 }
 
 static const struct wl_tbm_listener wl_tbm_client_listener = {
-    handle_tbm_authentication_info
+    handle_tbm_authentication_info,
+    handle_tbm_monitor_client_tbm_bo
 };
 
 static void
