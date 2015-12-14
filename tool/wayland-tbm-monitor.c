@@ -98,12 +98,9 @@ _wl_tbm_trace_usage()
 	WL_TBM_LOG("      unregister client [pid]: unregister the pid of client to trace.\n");
 	WL_TBM_LOG("      unregister server      : unregister the server to trace.\n");
 	WL_TBM_LOG("      unregister all         : unregister all clients and server.\n");
-	WL_TBM_LOG("      change                 : show the changes of the tbm_bo.\n");
-	WL_TBM_LOG("      info                   : show the information of the tbm_bo.\n");
 	WL_TBM_LOG("      status                 : show the status of the trace setting values.\n");
 	WL_TBM_LOG("    <examples>\n");
 	WL_TBM_LOG("      # wayland-tbm-monitor trace register client 1234\n");
-	WL_TBM_LOG("      # wayland-tbm-monitor trace changes\n");
 	WL_TBM_LOG("      # wayland-tbm-monitor trace on\n");
 	WL_TBM_LOG("      # wayland-tbm-monitor trace off\n");
 	WL_TBM_LOG("\n");
@@ -225,10 +222,6 @@ _wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor, int arg
 				_wl_tbm_trace_usage();
 				return 0;
 			}
-        } else if (!strncmp(argv[2], "change", 6)) {
-			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_CHANGE;
-    	} else if (!strncmp(argv[2], "info", 4)) {
-			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_INFO;
         } else if (!strncmp(argv[2], "status", 6)) {
 			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_STATUS;
         } else {
