@@ -36,7 +36,10 @@ extern "C" {
 
 #include "wayland-tbm-client.h"
 
-#define WL_TBM_LOG(...)  fprintf (stderr, __VA_ARGS__)
+#define WL_TBM_DEBUG(fmt, ...)   fprintf (stderr, "[WL_TBM:DEBUG(%d)] " fmt, getpid(), ##__VA_ARGS__)
+#define WL_TBM_C_LOG(fmt, ...)   fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
+#define WL_TBM_S_LOG(fmt, ...)   fprintf (stderr, "[WL_TBM_S(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
+#define WL_TBM_LOG(fmt, ...)     fprintf (stderr, "[WL_TBM(%d)] " fmt, getpid(), ##__VA_ARGS__)
 
 /* check condition */
 #define WL_TBM_RETURN_IF_FAIL(cond) {\
@@ -60,6 +63,7 @@ extern "C" {
 
 typedef enum
 {
+	WL_TBM_MONITOR_COMMAND_LIST,
     WL_TBM_MONITOR_COMMAND_SHOW,
     WL_TBM_MONITOR_COMMAND_TRACE,
 } WL_TBM_MONITOR_COMMAND;
@@ -90,6 +94,9 @@ void         _wayland_tbm_client_reset_embedded_auth_info(struct wayland_tbm_cli
 int32_t      _wayland_tbm_client_get_embedded_auth_fd(struct wayland_tbm_client *tbm_client);
 uint32_t     _wayland_tbm_client_get_embedded_capability(struct wayland_tbm_client *tbm_client);
 const char  *_wayland_tbm_client_get_embedded_device_name(struct wayland_tbm_client *tbm_client);
+
+void    _wayland_tbm_util_get_appname_brief(char *brief);
+void    _wayland_tbm_util_get_appname_from_pid(long pid, char *str);
 
 #ifdef  __cplusplus
 }

@@ -24,7 +24,8 @@ libwayland_tbm_server_la_LIBADD = \
 	$(WL_TBM_SERVER_LIBS)
 libwayland_tbm_server_la_SOURCES = \
 	wayland-tbm-client.c \
-	wayland-tbm-server.c
+	wayland-tbm-server.c \
+	wayland-tbm-util.c
 
 nodist_libwayland_tbm_server_la_SOURCES =		\
 	wayland-tbm-server-protocol.h	\
@@ -40,7 +41,8 @@ libwayland_tbm_client_la_LIBADD = \
 	$(WL_TBM_COMMON_LIBS) \
 	$(WL_TBM_CLIENT_LIBS)
 libwayland_tbm_client_la_SOURCES = \
-	wayland-tbm-client.c
+	wayland-tbm-client.c \
+	wayland-tbm-util.c
 
 nodist_libwayland_tbm_client_la_SOURCES =		\
 	wayland-tbm-client-protocol.h	\

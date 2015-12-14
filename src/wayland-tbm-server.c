@@ -80,6 +80,7 @@ struct wl_tbm_buffer {
 struct wayland_tbm_client_resource {
     struct wl_resource *resource;
 	pid_t pid;
+    char *app_name;
 	struct wl_list link;
 };
 
@@ -262,11 +263,38 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 {
     struct wayland_tbm_server *tbm_srv = wl_resource_get_user_data(resource);
 	struct wayland_tbm_client_resource *c_res = NULL, *tmp_res;
+    int i = 0;
 
 #ifdef WL_TBM_SERVER_DEBUG
    WL_TBM_LOG("[%s]: command=%d, trace_command=%d, target=%d, pid=%d.\n", __func__,
        command, trace_command, target, pid);
 #endif
+
+	if (command == WL_TBM_MONITOR_COMMAND_LIST) {
+		WL_TBM_DEBUG("==================  app list	 =======================\n");
+		WL_TBM_DEBUG("no pid  app_name\n");
+
+		if (!wl_list_empty(&tbm_srv->client_resource_list)) {
+			wl_list_for_each_safe(c_res, tmp_res, &tbm_srv->client_resource_list, link) {
+                /* skip the requestor (wayland-tbm-monitor */
+                if (c_res->resource == resource)
+                    continue;
+
+                if (!c_res->app_name) {
+                    c_res->app_name = (char*) calloc(1, 255*sizeof(char));
+
+                    _wayland_tbm_util_get_appname_from_pid(c_res->pid, c_res->app_name);
+                    _wayland_tbm_util_get_appname_brief(c_res->app_name);
+                }
+
+                WL_TBM_DEBUG("%-3d%-5d%s\n", ++i, c_res->pid, c_res->app_name);
+			}
+		}
+
+		WL_TBM_DEBUG("======================================================\n");
+
+		return;
+	}
 
     if (target == WL_TBM_MONITOR_TARGET_CLIENT) {
         if (pid < 1) {
@@ -479,9 +507,13 @@ _wayland_tbm_server_destroy_resource (struct wl_resource *resource)
 	if (!wl_list_empty(&tbm_srv->client_resource_list)) {
 		wl_list_for_each_safe(c_res, tmp_res, &tbm_srv->client_resource_list, link) {
 			if (c_res->resource == resource) {
+#ifdef WL_TBM_SERVER_DEBUG
 				WL_TBM_LOG("[%s]: resource,%p pid,%d \n", __func__, c_res->resource, c_res->pid);
-
+#endif
 				wl_list_remove(&c_res->link);
+                if (c_res->app_name)
+                    free(c_res->app_name);
+                free(c_res);
 				break;
             }
 		}
@@ -516,7 +548,9 @@ _wayland_tbm_server_bind_cb(struct wl_client *client, void *data, uint32_t versi
     tbm_srv = wl_resource_get_user_data(resource);
 	wl_client_get_credentials(client, &pid, &uid, &gid);
 
+#ifdef WL_TBM_SERVER_DEBUG
     WL_TBM_LOG("[%s]: resource,%p pid,%d \n", __func__, resource, pid);
+#endif
 
     c_res = calloc (1, sizeof(struct wayland_tbm_client_resource));
     c_res->pid = pid;
