@@ -112,6 +112,7 @@ _create_buffer(struct wl_client *client, struct wl_resource *resource,
               int32_t is_fd, int32_t *names, int32_t num_name, uint32_t flags)
 {
     struct wayland_tbm_server *tbm_srv = wl_resource_get_user_data(resource);
+    struct wayland_tbm_client_resource *c_res = NULL, *tmp_res= NULL;
     struct wl_tbm_buffer *buffer;
     tbm_surface_h surface;
     tbm_bo bos[TBM_SURF_PLANE_MAX];
@@ -143,6 +144,16 @@ _create_buffer(struct wl_client *client, struct wl_resource *resource,
                 "invalid name:is_fd(%d)", is_fd);
         free(buffer);
         return;
+    }
+
+    /* set the debug_pid to the surface for debugging */
+    if (!wl_list_empty(&tbm_srv->client_resource_list)) {
+        wl_list_for_each_safe(c_res, tmp_res, &tbm_srv->client_resource_list, link) {
+            if (c_res->resource == resource) {
+                tbm_surface_internal_set_debug_pid(surface, c_res->pid);
+                break;
+            }
+        }
     }
 
     buffer->resource = wl_resource_create(client, &wl_buffer_interface, 1, id);
