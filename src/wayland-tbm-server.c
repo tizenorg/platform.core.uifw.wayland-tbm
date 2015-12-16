@@ -400,6 +400,8 @@ _wayland_tbm_server_impl_create_buffer(struct wl_client *client,
         return;
     }
 
+	memset(&info, 0x0, sizeof(tbm_surface_info_s));
+
     info.width = width;
     info.height = height;
     info.format = format;
@@ -461,6 +463,8 @@ _wayland_tbm_server_impl_create_buffer_with_fd(struct wl_client *client,
                 "invalid format");
         return;
     }
+
+	memset(&info, 0x0, sizeof(tbm_surface_info_s));
 
     info.width = width;
     info.height = height;
