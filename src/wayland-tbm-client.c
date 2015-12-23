@@ -189,7 +189,12 @@ wayland_tbm_client_init(struct wl_display* display)
     tbm_client->embedded_auth_fd = -1; /* for embedded server client */
 
     tbm_client->wl_queue = wl_display_create_queue(display);
-    WL_TBM_RETURN_VAL_IF_FAIL(tbm_client->wl_queue != NULL, NULL);
+    if (!tbm_client->wl_queue) {
+        WL_TBM_LOG("Failed to create queue.\n");
+
+        free(tbm_client);
+        return NULL;
+    }
 
     wl_registry = wl_display_get_registry(display);
     if (!wl_registry) {
@@ -197,7 +202,6 @@ wayland_tbm_client_init(struct wl_display* display)
 
         wl_event_queue_destroy(tbm_client->wl_queue);
         free(tbm_client);
-
         return NULL;
     }
 

@@ -143,7 +143,7 @@ _wl_tbm_usage()
 static int
 _wl_tbm_select_target_option(struct wayland_tbm_monitor *tbm_monitor, int argc, char *argv[], int arg_pos)
 {
-	if (!strncmp(argv[arg_pos], "client", 6)) {
+	if (!strncmp(argv[arg_pos], "client", strlen(argv[arg_pos])+1)) {
 		if (argc < (arg_pos+2)) {
 			WL_TBM_LOG("error: no pid. please type the pid.\n");
 			return 0;
@@ -171,9 +171,9 @@ _wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor, int arg
         return 0;
     }
 
-    if (!strncmp(argv[1], "list", 4)) {
+    if (!strncmp(argv[1], "list", strlen(argv[1])+1)) {
         tbm_monitor->options.command = WL_TBM_MONITOR_COMMAND_LIST;
-    } else if (!strncmp(argv[1], "show", 4)) {
+    } else if (!strncmp(argv[1], "show", strlen(argv[1])+1)) {
         if (argc < 3) {
 			_wl_tbm_show_usage();
 			return 0;
@@ -184,7 +184,7 @@ _wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor, int arg
 			_wl_tbm_show_usage();
 			return 0;
         }
-    } else if (!strncmp(argv[1], "trace", 4)) {
+    } else if (!strncmp(argv[1], "trace", strlen(argv[1])+1)) {
         if (argc < 3) {
 			_wl_tbm_trace_usage();
 			return 0;
@@ -192,11 +192,11 @@ _wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor, int arg
 
         tbm_monitor->options.command = WL_TBM_MONITOR_COMMAND_TRACE;
 
-        if (!strncmp(argv[2], "on", 2)) {
+        if (!strncmp(argv[2], "on", strlen(argv[2])+1)) {
 			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_ON;
-        } else if (!strncmp(argv[2], "off", 3)) {
+        } else if (!strncmp(argv[2], "off", strlen(argv[2])+1)) {
 			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_OFF;
-        } else if (!strncmp(argv[2], "register", 8)) {
+        } else if (!strncmp(argv[2], "register", strlen(argv[2])+1)) {
 			if (argc < 4) {
 				WL_TBM_LOG("error: no pid. please type the target(client [pid]/server/all).\n");
 				_wl_tbm_trace_usage();
@@ -209,7 +209,7 @@ _wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor, int arg
 				_wl_tbm_trace_usage();
 				return 0;
 			}
-        } else if (!strncmp(argv[2], "unregister", 10)) {
+        } else if (!strncmp(argv[2], "unregister", strlen(argv[2])+1)) {
 			if (argc < 4) {
 				WL_TBM_LOG("error: no pid. please type the target(client [pid]/server/all).\n");
 				_wl_tbm_trace_usage();
@@ -222,7 +222,7 @@ _wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor, int arg
 				_wl_tbm_trace_usage();
 				return 0;
 			}
-        } else if (!strncmp(argv[2], "status", 6)) {
+        } else if (!strncmp(argv[2], "status", strlen(argv[2])+1)) {
 			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_STATUS;
         } else {
 			_wl_tbm_trace_usage();

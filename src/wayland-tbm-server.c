@@ -273,7 +273,7 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 				int32_t pid)
 {
     struct wayland_tbm_server *tbm_srv = wl_resource_get_user_data(resource);
-	struct wayland_tbm_client_resource *c_res = NULL, *tmp_res;
+	struct wayland_tbm_client_resource *c_res = NULL, *tmp_res = NULL;
     int i = 0;
 
 #ifdef WL_TBM_SERVER_DEBUG
