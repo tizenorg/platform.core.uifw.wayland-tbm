@@ -61,39 +61,42 @@ extern "C" {
     }\
 }
 
-typedef enum
-{
+typedef enum {
 	WL_TBM_MONITOR_COMMAND_LIST,
-    WL_TBM_MONITOR_COMMAND_SHOW,
-    WL_TBM_MONITOR_COMMAND_TRACE,
+	WL_TBM_MONITOR_COMMAND_SHOW,
+	WL_TBM_MONITOR_COMMAND_TRACE,
 } WL_TBM_MONITOR_COMMAND;
 
-typedef enum
-{
-    WL_TBM_MONITOR_TRACE_COMMAND_ON,
-    WL_TBM_MONITOR_TRACE_COMMAND_OFF,
-    WL_TBM_MONITOR_TRACE_COMMAND_REGISTER,
-    WL_TBM_MONITOR_TRACE_COMMAND_UNREGISTER,
-    WL_TBM_MONITOR_TRACE_COMMAND_CHANGE,
+typedef enum {
+	WL_TBM_MONITOR_TRACE_COMMAND_ON,
+	WL_TBM_MONITOR_TRACE_COMMAND_OFF,
+	WL_TBM_MONITOR_TRACE_COMMAND_REGISTER,
+	WL_TBM_MONITOR_TRACE_COMMAND_UNREGISTER,
+	WL_TBM_MONITOR_TRACE_COMMAND_CHANGE,
 	WL_TBM_MONITOR_TRACE_COMMAND_INFO,
 	WL_TBM_MONITOR_TRACE_COMMAND_STATUS,
 } WL_TBM_MONITOR_TRACE_COMMAND;
 
-typedef enum
-{
-    WL_TBM_MONITOR_TARGET_CLIENT,
-    WL_TBM_MONITOR_TARGET_SERVER,
-    WL_TBM_MONITOR_TARGET_ALL,
+typedef enum {
+	WL_TBM_MONITOR_TARGET_CLIENT,
+	WL_TBM_MONITOR_TARGET_SERVER,
+	WL_TBM_MONITOR_TARGET_ALL,
 } WL_TBM_MONITOR_TARGET;
 
 /* internal functions */
-int32_t        _wayland_tbm_client_get_auth_fd(struct wayland_tbm_client *tbm_client);
-struct wl_tbm *_wayland_tbm_client_get_wl_tbm(struct wayland_tbm_client *tbm_client);
+int32_t        _wayland_tbm_client_get_auth_fd(struct wayland_tbm_client
+		*tbm_client);
+struct wl_tbm *_wayland_tbm_client_get_wl_tbm(struct wayland_tbm_client
+		*tbm_client);
 
-void         _wayland_tbm_client_reset_embedded_auth_info(struct wayland_tbm_client *tbm_client);
-int32_t      _wayland_tbm_client_get_embedded_auth_fd(struct wayland_tbm_client *tbm_client);
-uint32_t     _wayland_tbm_client_get_embedded_capability(struct wayland_tbm_client *tbm_client);
-const char  *_wayland_tbm_client_get_embedded_device_name(struct wayland_tbm_client *tbm_client);
+void         _wayland_tbm_client_reset_embedded_auth_info(
+	struct wayland_tbm_client *tbm_client);
+int32_t      _wayland_tbm_client_get_embedded_auth_fd(struct wayland_tbm_client
+		*tbm_client);
+uint32_t     _wayland_tbm_client_get_embedded_capability(
+	struct wayland_tbm_client *tbm_client);
+const char  *_wayland_tbm_client_get_embedded_device_name(
+	struct wayland_tbm_client *tbm_client);
 
 void    _wayland_tbm_util_get_appname_brief(char *brief);
 void    _wayland_tbm_util_get_appname_from_pid(long pid, char *str);

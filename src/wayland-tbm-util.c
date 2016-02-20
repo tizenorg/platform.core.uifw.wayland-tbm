@@ -35,52 +35,52 @@ DEALINGS IN THE SOFTWARE.
 void
 _wayland_tbm_util_get_appname_brief(char *brief)
 {
-    char delim[] = "/";
-    char *token = NULL;
-    char temp[255] = {0,};
-    char *saveptr = NULL;
+	char delim[] = "/";
+	char *token = NULL;
+	char temp[255] = {0,};
+	char *saveptr = NULL;
 
-    token = strtok_r(brief, delim, &saveptr);
+	token = strtok_r(brief, delim, &saveptr);
 
-    while (token != NULL) {
-        memset(temp, 0x00, 255*sizeof(char));
-        strncpy(temp, token, 254*sizeof(char));
-        token = strtok_r(NULL, delim, &saveptr);
-    }
+	while (token != NULL) {
+		memset(temp, 0x00, 255 * sizeof(char));
+		strncpy(temp, token, 254 * sizeof(char));
+		token = strtok_r(NULL, delim, &saveptr);
+	}
 
-    snprintf(brief, sizeof(temp), "%s", temp);
+	snprintf(brief, sizeof(temp), "%s", temp);
 }
 
 void
 _wayland_tbm_util_get_appname_from_pid(long pid, char *str)
 {
-    FILE* fp;
-    int len;
-    long app_pid = pid;
-    char fn_cmdline[255] = {0,};
-    char cmdline[255] = {0,};
+	FILE *fp;
+	int len;
+	long app_pid = pid;
+	char fn_cmdline[255] = {0,};
+	char cmdline[255] = {0,};
 
-    snprintf(fn_cmdline, sizeof(fn_cmdline), "/proc/%ld/cmdline",app_pid);
+	snprintf(fn_cmdline, sizeof(fn_cmdline), "/proc/%ld/cmdline", app_pid);
 
-    fp = fopen(fn_cmdline, "r");
-    if(fp == 0) {
-        fprintf(stderr,"cannot file open /proc/%ld/cmdline", app_pid);
-        return;
-    }
+	fp = fopen(fn_cmdline, "r");
+	if (fp == 0) {
+		fprintf(stderr, "cannot file open /proc/%ld/cmdline", app_pid);
+		return;
+	}
 
-    if (!fgets(cmdline, 255, fp)) {
-        fprintf(stderr, "fail to get appname for pid(%ld)\n", app_pid);
-        fclose(fp);
-        return;
-    }
-    fclose(fp);
+	if (!fgets(cmdline, 255, fp)) {
+		fprintf(stderr, "fail to get appname for pid(%ld)\n", app_pid);
+		fclose(fp);
+		return;
+	}
+	fclose(fp);
 
-    len = strlen(cmdline);
-    if(len < 1)
-        memset(cmdline, 0x00,255);
-    else
-        cmdline[len] = 0;
+	len = strlen(cmdline);
+	if (len < 1)
+		memset(cmdline, 0x00, 255);
+	else
+		cmdline[len] = 0;
 
-    snprintf(str, sizeof(cmdline), "%s", cmdline);
+	snprintf(str, sizeof(cmdline), "%s", cmdline);
 }
 

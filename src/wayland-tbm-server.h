@@ -39,13 +39,18 @@ extern "C" {
 
 struct wayland_tbm_server;
 
-struct wayland_tbm_server *wayland_tbm_server_init(struct wl_display *display, const char *device_name, int fd, uint32_t flags);
-struct wayland_tbm_server *wayland_tbm_server_embedded_init(struct wl_display *embedded, struct wl_display *host);
-void                       wayland_tbm_server_deinit(struct wayland_tbm_server *tbm_srv);
+struct wayland_tbm_server *wayland_tbm_server_init(struct wl_display *display,
+		const char *device_name, int fd, uint32_t flags);
+struct wayland_tbm_server *wayland_tbm_server_embedded_init(
+	struct wl_display *embedded, struct wl_display *host);
+void                       wayland_tbm_server_deinit(struct wayland_tbm_server
+		*tbm_srv);
 
 
-void          *wayland_tbm_server_get_bufmgr(struct wayland_tbm_server *tbm_srv);
-tbm_surface_h  wayland_tbm_server_get_surface(struct wayland_tbm_server *tbm_srv, struct wl_resource *resource);
+void          *wayland_tbm_server_get_bufmgr(struct wayland_tbm_server
+		*tbm_srv);
+tbm_surface_h  wayland_tbm_server_get_surface(struct wayland_tbm_server
+		*tbm_srv, struct wl_resource *resource);
 
 
 #ifdef  __cplusplus

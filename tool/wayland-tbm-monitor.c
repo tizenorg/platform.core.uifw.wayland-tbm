@@ -36,52 +36,52 @@ DEALINGS IN THE SOFTWARE.
 
 //#define WL_TBM_MONITOR_DEBUG
 
-struct wayland_tbm_monitor
-{
-    struct wl_display *dpy;
-    struct wl_tbm *wl_tbm;
+struct wayland_tbm_monitor {
+	struct wl_display *dpy;
+	struct wl_tbm *wl_tbm;
 
-    struct {
+	struct {
 		WL_TBM_MONITOR_COMMAND command;
 		WL_TBM_MONITOR_TRACE_COMMAND trace_command;
 		WL_TBM_MONITOR_TARGET target;
 		int pid;
-    } options;
+	} options;
 };
 
 static const struct wl_tbm_listener wl_tbm_monitor_listener = {
-    NULL, /* authentication_info */
+	NULL, /* authentication_info */
 	NULL, /* monitor_client_tbm_bo */
 };
 
 static void
 _wayland_tbm_monitor_registry_handle_global(void *data,
-				struct wl_registry *registry,
-				uint32_t name,
-				const char *interface,
-				uint32_t version)
+		struct wl_registry *registry,
+		uint32_t name,
+		const char *interface,
+		uint32_t version)
 {
-    struct wayland_tbm_monitor *tbm_monitor = (struct wayland_tbm_monitor *)data;
+	struct wayland_tbm_monitor *tbm_monitor = (struct wayland_tbm_monitor *)data;
 
-    if (!strcmp(interface, "wl_tbm")) {
-        tbm_monitor->wl_tbm = wl_registry_bind(registry, name, &wl_tbm_interface, version);
-        WL_TBM_RETURN_IF_FAIL(tbm_monitor->wl_tbm != NULL);
+	if (!strcmp(interface, "wl_tbm")) {
+		tbm_monitor->wl_tbm = wl_registry_bind(registry, name, &wl_tbm_interface,
+						       version);
+		WL_TBM_RETURN_IF_FAIL(tbm_monitor->wl_tbm != NULL);
 
-        wl_tbm_add_listener(tbm_monitor->wl_tbm, &wl_tbm_monitor_listener, tbm_monitor);
+		wl_tbm_add_listener(tbm_monitor->wl_tbm, &wl_tbm_monitor_listener, tbm_monitor);
 
-        /* request the tbm monitor */
+		/* request the tbm monitor */
 		wl_tbm_request_tbm_monitor(tbm_monitor->wl_tbm,
-                tbm_monitor->options.command,
-                tbm_monitor->options.trace_command,
-                tbm_monitor->options.target,
-                tbm_monitor->options.pid);
-        wl_display_roundtrip(tbm_monitor->dpy);
-    }
+					   tbm_monitor->options.command,
+					   tbm_monitor->options.trace_command,
+					   tbm_monitor->options.target,
+					   tbm_monitor->options.pid);
+		wl_display_roundtrip(tbm_monitor->dpy);
+	}
 }
 
 static const struct wl_registry_listener registry_listener = {
-    _wayland_tbm_monitor_registry_handle_global,
-    NULL
+	_wayland_tbm_monitor_registry_handle_global,
+	NULL
 };
 
 static void
@@ -134,23 +134,24 @@ static void
 _wl_tbm_usage()
 {
 	WL_TBM_LOG("wayland-tbm-monitor : show/trace the infomation of tbm_bo in clietns and in server.\n");
-    _wl_tbm_list_usage();
-    _wl_tbm_show_usage();
-    _wl_tbm_trace_usage();
+	_wl_tbm_list_usage();
+	_wl_tbm_show_usage();
+	_wl_tbm_trace_usage();
 	WL_TBM_LOG("\n");
 }
 
 static int
-_wl_tbm_select_target_option(struct wayland_tbm_monitor *tbm_monitor, int argc, char *argv[], int arg_pos)
+_wl_tbm_select_target_option(struct wayland_tbm_monitor *tbm_monitor, int argc,
+			     char *argv[], int arg_pos)
 {
-	if (!strncmp(argv[arg_pos], "client", strlen(argv[arg_pos])+1)) {
-		if (argc < (arg_pos+2)) {
+	if (!strncmp(argv[arg_pos], "client", strlen(argv[arg_pos]) + 1)) {
+		if (argc < (arg_pos + 2)) {
 			WL_TBM_LOG("error: no pid. please type the pid.\n");
 			return 0;
 		}
 
 		tbm_monitor->options.target = WL_TBM_MONITOR_TARGET_CLIENT;
-		tbm_monitor->options.pid = atoi(argv[arg_pos+1]);
+		tbm_monitor->options.pid = atoi(argv[arg_pos + 1]);
 	} else if (!strncmp(argv[arg_pos], "server", 6)) {
 		tbm_monitor->options.target = WL_TBM_MONITOR_TARGET_SERVER;
 	} else if (!strncmp(argv[arg_pos], "all", 3)) {
@@ -159,44 +160,45 @@ _wl_tbm_select_target_option(struct wayland_tbm_monitor *tbm_monitor, int argc, 
 		return 0;
 	}
 
-    return 1;
+	return 1;
 }
 
 
 static int
-_wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor, int argc, char* argv[])
+_wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor,
+				int argc, char *argv[])
 {
-    if (argc < 2) {
-        _wl_tbm_usage();
-        return 0;
-    }
+	if (argc < 2) {
+		_wl_tbm_usage();
+		return 0;
+	}
 
-    if (!strncmp(argv[1], "list", strlen(argv[1])+1)) {
-        tbm_monitor->options.command = WL_TBM_MONITOR_COMMAND_LIST;
-    } else if (!strncmp(argv[1], "show", strlen(argv[1])+1)) {
-        if (argc < 3) {
+	if (!strncmp(argv[1], "list", strlen(argv[1]) + 1)) {
+		tbm_monitor->options.command = WL_TBM_MONITOR_COMMAND_LIST;
+	} else if (!strncmp(argv[1], "show", strlen(argv[1]) + 1)) {
+		if (argc < 3) {
 			_wl_tbm_show_usage();
 			return 0;
-        }
+		}
 
-        tbm_monitor->options.command = WL_TBM_MONITOR_COMMAND_SHOW;
-        if (!_wl_tbm_select_target_option(tbm_monitor, argc, argv, 2)){
+		tbm_monitor->options.command = WL_TBM_MONITOR_COMMAND_SHOW;
+		if (!_wl_tbm_select_target_option(tbm_monitor, argc, argv, 2)) {
 			_wl_tbm_show_usage();
 			return 0;
-        }
-    } else if (!strncmp(argv[1], "trace", strlen(argv[1])+1)) {
-        if (argc < 3) {
+		}
+	} else if (!strncmp(argv[1], "trace", strlen(argv[1]) + 1)) {
+		if (argc < 3) {
 			_wl_tbm_trace_usage();
 			return 0;
-        }
+		}
 
-        tbm_monitor->options.command = WL_TBM_MONITOR_COMMAND_TRACE;
+		tbm_monitor->options.command = WL_TBM_MONITOR_COMMAND_TRACE;
 
-        if (!strncmp(argv[2], "on", strlen(argv[2])+1)) {
+		if (!strncmp(argv[2], "on", strlen(argv[2]) + 1)) {
 			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_ON;
-        } else if (!strncmp(argv[2], "off", strlen(argv[2])+1)) {
+		} else if (!strncmp(argv[2], "off", strlen(argv[2]) + 1)) {
 			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_OFF;
-        } else if (!strncmp(argv[2], "register", strlen(argv[2])+1)) {
+		} else if (!strncmp(argv[2], "register", strlen(argv[2]) + 1)) {
 			if (argc < 4) {
 				WL_TBM_LOG("error: no pid. please type the target(client [pid]/server/all).\n");
 				_wl_tbm_trace_usage();
@@ -204,12 +206,12 @@ _wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor, int arg
 			}
 
 			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_REGISTER;
-			if (_wl_tbm_select_target_option(tbm_monitor, argc, argv, 3)){
+			if (_wl_tbm_select_target_option(tbm_monitor, argc, argv, 3)) {
 				WL_TBM_LOG("error: no pid. please type the target(client [pid]/server/all).\n");
 				_wl_tbm_trace_usage();
 				return 0;
 			}
-        } else if (!strncmp(argv[2], "unregister", strlen(argv[2])+1)) {
+		} else if (!strncmp(argv[2], "unregister", strlen(argv[2]) + 1)) {
 			if (argc < 4) {
 				WL_TBM_LOG("error: no pid. please type the target(client [pid]/server/all).\n");
 				_wl_tbm_trace_usage();
@@ -217,66 +219,67 @@ _wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor, int arg
 			}
 
 			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_UNREGISTER;
-			if (_wl_tbm_select_target_option(tbm_monitor, argc, argv, 3)){
+			if (_wl_tbm_select_target_option(tbm_monitor, argc, argv, 3)) {
 				WL_TBM_LOG("error: no pid. please type the target(client [pid]/server/all).\n");
 				_wl_tbm_trace_usage();
 				return 0;
 			}
-        } else if (!strncmp(argv[2], "status", strlen(argv[2])+1)) {
+		} else if (!strncmp(argv[2], "status", strlen(argv[2]) + 1)) {
 			tbm_monitor->options.trace_command = WL_TBM_MONITOR_TRACE_COMMAND_STATUS;
-        } else {
+		} else {
 			_wl_tbm_trace_usage();
 			return 0;
-        }
-    } else {
-        _wl_tbm_usage();
-        return 0;
-    }
+		}
+	} else {
+		_wl_tbm_usage();
+		return 0;
+	}
 
-    return 1;
+	return 1;
 }
 
 int
-main(int argc, char* argv[])
+main(int argc, char *argv[])
 {
-   struct wayland_tbm_monitor *tbm_monitor = NULL;
-   struct wl_registry *wl_registry;
-   int ret = 0;
+	struct wayland_tbm_monitor *tbm_monitor = NULL;
+	struct wl_registry *wl_registry;
+	int ret = 0;
 
-   tbm_monitor = calloc(1, sizeof(struct wayland_tbm_monitor));
-   WL_TBM_RETURN_VAL_IF_FAIL(tbm_monitor != NULL, -1);
+	tbm_monitor = calloc(1, sizeof(struct wayland_tbm_monitor));
+	WL_TBM_RETURN_VAL_IF_FAIL(tbm_monitor != NULL, -1);
 
-   ret = _wl_tbm_monitor_process_options(tbm_monitor, argc, argv);
-   if (!ret) {
-       goto finish;
-   }
+	ret = _wl_tbm_monitor_process_options(tbm_monitor, argc, argv);
+	if (!ret) {
+		goto finish;
+	}
 
-   tbm_monitor->dpy = wl_display_connect(NULL);
-   WL_TBM_GOTO_IF_FAIL(tbm_monitor->dpy != NULL, finish);
+	tbm_monitor->dpy = wl_display_connect(NULL);
+	WL_TBM_GOTO_IF_FAIL(tbm_monitor->dpy != NULL, finish);
 
-   wl_registry = wl_display_get_registry(tbm_monitor->dpy);
-   WL_TBM_GOTO_IF_FAIL(wl_registry != NULL, finish);
+	wl_registry = wl_display_get_registry(tbm_monitor->dpy);
+	WL_TBM_GOTO_IF_FAIL(wl_registry != NULL, finish);
 
 #ifdef WL_TBM_MONITOR_DEBUG
-   WL_TBM_LOG("[%s]: tbm_monitor=%p, display=%p\n", __func__, tbm_monitor, tbm_monitor->dpy);
+	WL_TBM_LOG("[%s]: tbm_monitor=%p, display=%p\n", __func__, tbm_monitor,
+		   tbm_monitor->dpy);
 #endif
 
-   wl_registry_add_listener(wl_registry, &registry_listener, tbm_monitor);
-   wl_display_dispatch(tbm_monitor->dpy);
-   wl_display_roundtrip(tbm_monitor->dpy);
+	wl_registry_add_listener(wl_registry, &registry_listener, tbm_monitor);
+	wl_display_dispatch(tbm_monitor->dpy);
+	wl_display_roundtrip(tbm_monitor->dpy);
 
-   wl_registry_destroy(wl_registry);
+	wl_registry_destroy(wl_registry);
 
 finish:
-   if (tbm_monitor) {
-       if (tbm_monitor->wl_tbm) {
-    	   wl_tbm_set_user_data(tbm_monitor->wl_tbm, NULL);
-    	   wl_tbm_destroy(tbm_monitor->wl_tbm);
-       }
+	if (tbm_monitor) {
+		if (tbm_monitor->wl_tbm) {
+			wl_tbm_set_user_data(tbm_monitor->wl_tbm, NULL);
+			wl_tbm_destroy(tbm_monitor->wl_tbm);
+		}
 
-       free(tbm_monitor);
-   }
+		free(tbm_monitor);
+	}
 
-   return 1;
+	return 1;
 }
 
