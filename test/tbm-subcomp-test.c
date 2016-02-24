@@ -57,7 +57,7 @@ main(int argc, char *argv[])
 		return -1;
 	}
 
-	tbm_server = wayland_tbm_server_embedded_init(dpy, host);
+	tbm_server = wayland_tbm_server_init(dpy, NULL, -1, 0);
 	if (!tbm_server) {
 		printf("[SRV] failed to initialize tbm embedded server\n");
 		wl_display_destroy(dpy);

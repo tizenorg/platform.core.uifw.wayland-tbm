@@ -64,11 +64,6 @@ struct wayland_tbm_server {
 	uint32_t fd;
 	uint32_t flags;
 	tbm_bufmgr bufmgr;
-
-	/* for embedded serverc client */
-	struct wayland_tbm_client *tbm_client;
-	struct wl_display *host_dpy;
-	struct wl_tbm *wl_tbm;
 };
 
 struct wl_tbm_buffer {
@@ -171,41 +166,6 @@ _create_buffer(struct wl_client *client, struct wl_resource *resource,
 }
 
 static void
-_send_embedded_server_auth_info(struct wayland_tbm_client *tbm_client,
-				struct wl_resource *resource, struct wl_display *host_dpy)
-{
-	struct wl_tbm *wl_tbm = NULL;
-	int fd = -1;
-	uint32_t capabilities;
-	const char *device_name = NULL;
-
-	wl_tbm = _wayland_tbm_client_get_wl_tbm(tbm_client);
-	if (!wl_tbm) {
-		WL_TBM_LOG("fail to send embedded server auth infor : no wl_tbm.\n");
-		return;
-	}
-
-	/* get the authentication from the display server */
-	wl_tbm_get_authentication_info(wl_tbm);
-	wl_display_roundtrip(host_dpy);
-
-	fd = _wayland_tbm_client_get_embedded_auth_fd(tbm_client);
-	capabilities = _wayland_tbm_client_get_embedded_capability(tbm_client);
-	device_name = _wayland_tbm_client_get_embedded_device_name(tbm_client);
-
-#ifdef WL_TBM_SERVER_DEBUG
-	WL_TBM_LOG("[%s]: send embedded auth: device_name=%p, capabilities=%d, fd=%d\n",
-		   __func__, device_name, capabilities, fd);
-#endif
-
-	/* send */
-	wl_tbm_send_authentication_info(resource, device_name, capabilities, fd);
-
-	/* reset the auth information */
-	_wayland_tbm_client_reset_embedded_auth_info(tbm_client);
-}
-
-static void
 _send_server_auth_info(struct wayland_tbm_server *tbm_srv,
 		       struct wl_resource *resource)
 {
@@ -213,6 +173,12 @@ _send_server_auth_info(struct wayland_tbm_server *tbm_srv,
 	uint32_t capabilities;
 	char *device_name = NULL;
 	drm_magic_t magic = 0;
+
+	if (!tbm_srv->device_name) {
+		wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
+			"device_name is NULL");
+		goto fini;
+	}
 
 	fd = open(tbm_srv->device_name, O_RDWR | O_CLOEXEC);
 	if (fd == -1 && errno == EINVAL) {
@@ -368,13 +334,7 @@ _wayland_tbm_server_impl_get_authentication_info(struct wl_client *client,
 {
 	struct wayland_tbm_server *tbm_srv = wl_resource_get_user_data(resource);
 
-	/* if display server is the client of the host display server, for embedded server */
-	if (tbm_srv->tbm_client) {
-		_send_embedded_server_auth_info(tbm_srv->tbm_client, resource,
-						tbm_srv->host_dpy);
-	} else {
-		_send_server_auth_info(tbm_srv, resource);
-	}
+	_send_server_auth_info(tbm_srv, resource);
 }
 
 static void
@@ -591,9 +551,10 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name,
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_srv != NULL, NULL);
 
 	tbm_srv->display = display;
-	tbm_srv->device_name = strdup(device_name);
 	tbm_srv->fd = fd;
 	tbm_srv->flags = flags;
+	if (device_name)
+		tbm_srv->device_name = strdup(device_name);
 
 	/* init the client resource list */
 	wl_list_init(&tbm_srv->client_resource_list);
@@ -613,44 +574,9 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name,
 	return tbm_srv;
 }
 
-struct wayland_tbm_server *
-wayland_tbm_server_embedded_init(struct wl_display *display,
-				 struct wl_display *host_display)
-{
-	struct wayland_tbm_server *tbm_srv;
-	struct wayland_tbm_client *tbm_client;
-
-	tbm_client = wayland_tbm_client_init(host_display);
-	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
-
-	tbm_srv = calloc(1, sizeof * tbm_srv);
-	if (!tbm_srv) {
-		wayland_tbm_client_deinit(tbm_client);
-		return NULL;
-	}
-
-	tbm_srv->display = display;
-	tbm_srv->device_name = strdup(wayland_tbm_client_get_device_name(tbm_client));
-	tbm_srv->fd = _wayland_tbm_client_get_auth_fd(
-			      tbm_client); // TODO: check dup or not????
-	tbm_srv->flags = wayland_tbm_client_get_capability(tbm_client);
-	tbm_srv->bufmgr = tbm_bufmgr_init(-1);
-	tbm_srv->tbm_client = tbm_client;
-	tbm_srv->host_dpy = host_display;
-	tbm_srv->wl_tbm = _wayland_tbm_client_get_wl_tbm(tbm_client);
-
-	tbm_srv->wl_tbm_global = wl_global_create(display, &wl_tbm_interface, 1,
-				 tbm_srv, _wayland_tbm_server_bind_cb);
-
-	return tbm_srv;
-}
-
 void
 wayland_tbm_server_deinit(struct wayland_tbm_server *tbm_srv)
 {
-	if (tbm_srv->tbm_client)
-		wayland_tbm_client_deinit(tbm_srv->tbm_client);
-
 	wl_global_destroy(tbm_srv->wl_tbm_global);
 
 	tbm_bufmgr_deinit(tbm_srv->bufmgr);
