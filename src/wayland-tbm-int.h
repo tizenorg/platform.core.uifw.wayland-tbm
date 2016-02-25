@@ -84,22 +84,14 @@ typedef enum {
 } WL_TBM_MONITOR_TARGET;
 
 /* internal functions */
-int32_t        _wayland_tbm_client_get_auth_fd(struct wayland_tbm_client
-		*tbm_client);
-struct wl_tbm *_wayland_tbm_client_get_wl_tbm(struct wayland_tbm_client
-		*tbm_client);
+struct wl_tbm *
+_wayland_tbm_client_get_wl_tbm(struct wayland_tbm_client *tbm_client);
 
-void         _wayland_tbm_client_reset_embedded_auth_info(
-	struct wayland_tbm_client *tbm_client);
-int32_t      _wayland_tbm_client_get_embedded_auth_fd(struct wayland_tbm_client
-		*tbm_client);
-uint32_t     _wayland_tbm_client_get_embedded_capability(
-	struct wayland_tbm_client *tbm_client);
-const char  *_wayland_tbm_client_get_embedded_device_name(
-	struct wayland_tbm_client *tbm_client);
+void
+_wayland_tbm_util_get_appname_brief(char *brief);
 
-void    _wayland_tbm_util_get_appname_brief(char *brief);
-void    _wayland_tbm_util_get_appname_from_pid(long pid, char *str);
+void
+_wayland_tbm_util_get_appname_from_pid(long pid, char *str);
 
 #ifdef  __cplusplus
 }

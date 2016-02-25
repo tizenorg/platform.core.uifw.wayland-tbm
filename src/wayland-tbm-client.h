@@ -39,21 +39,21 @@ extern "C" {
 
 struct wayland_tbm_client;
 
-struct wayland_tbm_client *wayland_tbm_client_init(struct wl_display *display);
-void                       wayland_tbm_client_deinit(struct wayland_tbm_client
-		*tbm_client);
+struct wayland_tbm_client *
+wayland_tbm_client_init(struct wl_display *display);
 
-struct wl_buffer *wayland_tbm_client_create_buffer(struct wayland_tbm_client
-		*tbm_client, tbm_surface_h surface);
-void              wayland_tbm_client_destroy_buffer(struct wayland_tbm_client
-		*tbm_client, struct wl_buffer *buffer);
+void
+wayland_tbm_client_deinit(struct wayland_tbm_client *tbm_client);
 
-const char     *wayland_tbm_client_get_device_name(struct wayland_tbm_client
-		*tbm_client);
-uint32_t        wayland_tbm_client_get_capability(struct wayland_tbm_client
-		*tbm_client);
-void           *wayland_tbm_client_get_bufmgr(struct wayland_tbm_client
-		*tbm_client);
+struct wl_buffer *
+wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client,
+				 tbm_surface_h surface);
+
+void
+wayland_tbm_client_destroy_buffer(struct wayland_tbm_client *tbm_client,
+				  struct wl_buffer *buffer);
+
+void *wayland_tbm_client_get_bufmgr(struct wayland_tbm_client *tbm_client);
 
 #ifdef  __cplusplus
 }

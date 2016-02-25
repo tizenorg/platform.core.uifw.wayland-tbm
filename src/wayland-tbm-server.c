@@ -176,7 +176,7 @@ _send_server_auth_info(struct wayland_tbm_server *tbm_srv,
 
 	if (!tbm_srv->device_name) {
 		wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
-			"device_name is NULL");
+				       "device_name is NULL");
 		goto fini;
 	}
 
