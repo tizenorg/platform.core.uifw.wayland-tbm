@@ -36,17 +36,12 @@ DEALINGS IN THE SOFTWARE.
 #include <unistd.h>
 #include <fcntl.h>
 
-#include <xf86drm.h>
 #include <tbm_surface.h>
 #include <tbm_surface_internal.h>
 #include <wayland-server.h>
-#include <wayland-client.h>
 
 #include "wayland-tbm-server.h"
 #include "wayland-tbm-server-protocol.h"
-
-#include "wayland-tbm-client.h"
-#include "wayland-tbm-client-protocol.h"
 
 #include "wayland-tbm-int.h"
 
@@ -60,9 +55,6 @@ struct wayland_tbm_server {
 
 	struct wl_list client_resource_list;
 
-	char *device_name;
-	uint32_t fd;
-	uint32_t flags;
 	tbm_bufmgr bufmgr;
 };
 
@@ -166,74 +158,6 @@ _create_buffer(struct wl_client *client, struct wl_resource *resource,
 }
 
 static void
-_send_server_auth_info(struct wayland_tbm_server *tbm_srv,
-		       struct wl_resource *resource)
-{
-	int fd = -1;
-	uint32_t capabilities;
-	char *device_name = NULL;
-	drm_magic_t magic = 0;
-
-	if (!tbm_srv->device_name) {
-		wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
-				       "device_name is NULL");
-		goto fini;
-	}
-
-	fd = open(tbm_srv->device_name, O_RDWR | O_CLOEXEC);
-	if (fd == -1 && errno == EINVAL) {
-		fd = open(tbm_srv->device_name, O_RDWR);
-		if (fd != -1)
-			fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
-	}
-
-	if (fd < 0) {
-		WL_TBM_LOG("failed to open drm : device_name, %s\n", tbm_srv->device_name);
-
-		wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
-				       "authenicate failed::open_drm");
-		goto fini;
-	}
-
-	if (drmGetMagic(fd, &magic) < 0) {
-		if (errno != EACCES) {
-			WL_TBM_LOG("failed to get magic\n");
-
-			wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
-					       "authenicate failed::get_magic");
-			goto fini;
-		}
-	}
-
-	if (drmAuthMagic(tbm_srv->fd, magic) < 0) {
-		WL_TBM_LOG("failed to authenticate magic\n");
-
-		wl_resource_post_error(resource, WL_TBM_ERROR_AUTHENTICATE_FAIL,
-				       "authenicate failed::auth_magic");
-		goto fini;
-	}
-
-	capabilities = tbm_srv->flags;
-	device_name = tbm_srv->device_name;
-
-#ifdef WL_TBM_SERVER_DEBUG
-	WL_TBM_LOG("[%s]: send auth: device_name=%p, capabilities=%d, fd=%d\n",
-		   __func__, device_name, capabilities, fd);
-#endif
-
-	/* send */
-	wl_tbm_send_authentication_info(resource, device_name, capabilities, fd);
-
-fini:
-	if (fd >= 0)
-		close(fd);
-
-	if (device_name && device_name != tbm_srv->device_name)
-		free(device_name);
-
-}
-
-static void
 _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 		struct wl_resource *resource,
 		int32_t command,
@@ -327,15 +251,6 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 
 }
 
-
-static void
-_wayland_tbm_server_impl_get_authentication_info(struct wl_client *client,
-		struct wl_resource *resource)
-{
-	struct wayland_tbm_server *tbm_srv = wl_resource_get_user_data(resource);
-
-	_send_server_auth_info(tbm_srv, resource);
-}
 
 static void
 _wayland_tbm_server_impl_create_buffer(struct wl_client *client,
@@ -472,7 +387,6 @@ _wayland_tbm_server_impl_create_buffer_with_fd(struct wl_client *client,
 static const struct wl_tbm_interface _wayland_tbm_server_implementation = {
 	_wayland_tbm_server_impl_create_buffer,
 	_wayland_tbm_server_impl_create_buffer_with_fd,
-	_wayland_tbm_server_impl_get_authentication_info,
 	_wayland_tbm_server_impl_request_tbm_monitor,
 };
 
@@ -551,19 +465,13 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name,
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_srv != NULL, NULL);
 
 	tbm_srv->display = display;
-	tbm_srv->fd = fd;
-	tbm_srv->flags = flags;
-	if (device_name)
-		tbm_srv->device_name = strdup(device_name);
 
 	/* init the client resource list */
 	wl_list_init(&tbm_srv->client_resource_list);
 
 	//init bufmgr
-	tbm_srv->bufmgr = tbm_bufmgr_init(tbm_srv->fd);
+	tbm_srv->bufmgr = tbm_bufmgr_init(-1);
 	if (!tbm_srv->bufmgr) {
-		if (tbm_srv->device_name)
-			free(tbm_srv->device_name);
 		free(tbm_srv);
 		return NULL;
 	}
@@ -582,9 +490,6 @@ wayland_tbm_server_deinit(struct wayland_tbm_server *tbm_srv)
 	wl_global_destroy(tbm_srv->wl_tbm_global);
 
 	tbm_bufmgr_deinit(tbm_srv->bufmgr);
-
-	if (tbm_srv->device_name)
-		free(tbm_srv->device_name);
 
 	free(tbm_srv);
 }

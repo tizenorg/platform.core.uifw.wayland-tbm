@@ -79,17 +79,7 @@ handle_tbm_monitor_client_tbm_bo(void *data,
 
 }
 
-static void
-handle_tbm_authentication_info(void *data,
-			       struct wl_tbm *wl_tbm,
-			       const char *device_name,
-			       uint32_t capabilities,
-			       int32_t auth_fd)
-{
-}
-
 static const struct wl_tbm_listener wl_tbm_client_listener = {
-	handle_tbm_authentication_info,
 	handle_tbm_monitor_client_tbm_bo
 };
 

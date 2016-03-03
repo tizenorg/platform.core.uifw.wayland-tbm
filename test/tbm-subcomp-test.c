@@ -4,7 +4,6 @@
 
 #define WL_HIDE_DEPRECATED
 
-#include <xf86drm.h>
 #include <wayland-server.h>
 #include <wayland-tbm-server.h>
 

@@ -30,7 +30,6 @@
        using the display's global event. -->
   <interface name="wl_tbm" version="1">
     <enum name="error">
-      <entry name="authenticate_fail" value="0"/>
       <entry name="invalid_format" value="1"/>
       <entry name="invalid_name" value="2"/>
     </enum>
@@ -79,10 +78,6 @@
       <arg name="buf2"	type="fd"/>
     </request>
 
-	<!-- For embedded server -->
-    <request name="get_authentication_info">
-    </request>
-
     <!-- monitor the tbm_bo of the clients and the server -->
     <request name="request_tbm_monitor">
       <arg name="command" type="int"/>
@@ -91,12 +86,6 @@
       <arg name="pid" type="int"/>
     </request>
 
-    <event name="authentication_info">
-    	<arg name="device_name" type="string"/>
-    	<arg name="capabilities" type="uint"/>
-    	<arg name="auth_fd" type="fd"/>
-    </event>
-
     <!-- monitor the tbm_bo of the client -->
     <event name="monitor_client_tbm_bo">
       <arg name="command" type="int"/>
@@ -104,7 +93,7 @@
       <arg name="target" type="int"/>
       <arg name="pid" type="int"/>
     </event>
-    
+
   </interface>
 
 </protocol>
