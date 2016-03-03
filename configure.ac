@@ -17,7 +17,7 @@ fi
 
 PKG_CHECK_MODULES([WL_TBM_COMMON], [libtbm capi-base-common])
 PKG_CHECK_MODULES([WL_TBM_CLIENT], [wayland-client])
-PKG_CHECK_MODULES([WL_TBM_SERVER], [wayland-server libdrm])
+PKG_CHECK_MODULES([WL_TBM_SERVER], [wayland-server])
 PKG_CHECK_MODULES( WAYLAND_SCANNER, wayland-scanner)
 
 AC_CONFIG_FILES([
