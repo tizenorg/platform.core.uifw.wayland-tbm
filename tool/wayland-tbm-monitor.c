@@ -49,7 +49,6 @@ struct wayland_tbm_monitor {
 };
 
 static const struct wl_tbm_listener wl_tbm_monitor_listener = {
-	NULL, /* authentication_info */
 	NULL, /* monitor_client_tbm_bo */
 };
 
