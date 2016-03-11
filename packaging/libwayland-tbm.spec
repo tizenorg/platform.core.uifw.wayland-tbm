@@ -45,6 +45,8 @@ Requires:   pkgconfig(libtbm)
 %description devel
 Development header files for use with Wayland protocol
 
+%global TZ_SYS_RO_SHARE  %{?TZ_SYS_RO_SHARE:%TZ_SYS_RO_SHARE}%{!?TZ_SYS_RO_SHARE:/usr/share}
+
 %prep
 %setup -q
 cp %{SOURCE1001} .
@@ -54,6 +56,9 @@ cp %{SOURCE1001} .
 make %{?_smp_mflags}
 
 %install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}/%{TZ_SYS_RO_SHARE}/license
+cp -af COPYING %{buildroot}/%{TZ_SYS_RO_SHARE}/license/%{name}
 %make_install
 
 %post -n libwayland-tbm-client -p /sbin/ldconfig
@@ -63,15 +68,15 @@ make %{?_smp_mflags}
 %postun -n libwayland-tbm-server -p /sbin/ldconfig
 
 %files -n libwayland-tbm-server
-%manifest %{name}.manifest
-%license COPYING
 %defattr(-,root,root)
+%manifest %{name}.manifest
+%{TZ_SYS_RO_SHARE}/license/%{name}
 %_libdir/libwayland-tbm-server.so.0*
 
 %files -n libwayland-tbm-client
-%manifest %{name}.manifest
-%license COPYING
 %defattr(-,root,root)
+%manifest %{name}.manifest
+%{TZ_SYS_RO_SHARE}/license/%{name}
 %_libdir/libwayland-tbm-client.so.0*
 %{_bindir}/wayland-tbm-monitor
 
