@@ -59,7 +59,9 @@ wayland_tbm_client_get_bufmgr(struct wayland_tbm_client *tbm_client);
 
 tbm_surface_queue_h
 wayland_tbm_client_create_surface_queue(struct wayland_tbm_client *tbm_client,
-					struct wl_surface *surface);
+					struct wl_surface *surface,
+					int queue_size,
+					int width, int height, tbm_format format);
 #ifdef  __cplusplus
 }
 #endif

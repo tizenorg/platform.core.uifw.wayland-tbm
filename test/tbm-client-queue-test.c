@@ -39,7 +39,8 @@ _create_surface_and_queue(AppInfoClient *app)
 {
 	app->surface = wl_tbm_test_create_surface(app->wl_tbm_test);
 	app->surface_queue = wayland_tbm_client_create_surface_queue(app->tbm_client,
-			     (struct wl_surface *)app->surface);
+			     (struct wl_surface *)app->surface, 3, 100, 100,
+			     TBM_FORMAT_ABGR8888);
 	WL_APP_C_LOG("surface:%p, surface_queue:%p\n", app->surface,
 		     app->surface_queue);
 	return;

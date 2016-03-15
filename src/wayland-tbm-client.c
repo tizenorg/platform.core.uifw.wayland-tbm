@@ -469,10 +469,14 @@ __tbm_surface_alloc_cb(tbm_surface_queue_h surface_queue, void *data)
 		wl_list_remove(link);
 
 	} else {
-		surface = tbm_surface_internal_create_with_flags(queue_info->width,
-				queue_info->height,
-				queue_info->format,
-				queue_info->flag);
+		int width = tbm_surface_queue_get_width(queue_info->tbm_queue);
+		int height = tbm_surface_queue_get_height(queue_info->tbm_queue);
+		int format = tbm_surface_queue_get_format(queue_info->tbm_queue);
+
+		surface = tbm_surface_internal_create_with_flags(width,
+							height,
+							format,
+							queue_info->flag);
 	}
 
 	return surface;
@@ -525,6 +529,14 @@ handle_tbm_queue_info(void *data,
 {
 	struct wayland_tbm_surface_queue *queue_info = data;
 
+	if (queue_info->tbm_queue) {
+		WL_TBM_C_LOG("INFO cur(%dx%d fmt:0x%x num:%d) new(%dx%d fmt:0x%x num:%d)\n",
+			queue_info->width, queue_info->height,
+			queue_info->format, queue_info->num_bufs,
+			width, height, format, num_buffers);
+		return;
+	}
+
 	queue_info->width = width;
 	queue_info->height = height;
 	queue_info->format = format;
@@ -532,10 +544,10 @@ handle_tbm_queue_info(void *data,
 	queue_info->num_bufs = num_buffers;
 
 	queue_info->tbm_queue = tbm_surface_queue_sequence_create(num_buffers,
-				width,
-				height,
-				format,
-				flags);
+								width,
+								height,
+								format,
+								flags);
 
 	if (queue_info->tbm_queue == NULL) {
 		WL_TBM_C_LOG("failed to create_surface %dx%d format:0x%x flags:%d, num_bufs:%d",
@@ -718,9 +730,24 @@ const struct wl_tbm_queue_listener wl_tbm_queue_listener = {
 	handle_tbm_queue_flush
 };
 
+static void
+handle_tbm_surface_queue_notify(tbm_surface_queue_h surface_queue,
+		void *data)
+{
+	struct wayland_tbm_surface_queue *queue_info = data;
+	WL_TBM_C_LOG("\n");
+
+	if (queue_info->wl_tbm_queue)
+		wl_tbm_queue_destroy(queue_info->wl_tbm_queue);
+
+	free(queue_info);
+}
+
 tbm_surface_queue_h
 wayland_tbm_client_create_surface_queue(struct wayland_tbm_client *tbm_client,
-					struct wl_surface *surface)
+					struct wl_surface *surface,
+					int queue_size,
+					int width, int height, tbm_format format)
 {
 	struct wayland_tbm_surface_queue *queue_info;
 	struct wl_tbm_queue *queue;
@@ -739,12 +766,40 @@ wayland_tbm_client_create_surface_queue(struct wayland_tbm_client *tbm_client,
 
 	wl_tbm_queue_add_listener(queue, &wl_tbm_queue_listener, queue_info);
 	wl_display_roundtrip(tbm_client->dpy);
-	WL_TBM_GOTO_IF_FAIL(queue_info->tbm_queue != NULL, fail);
+
+	if (!queue_info->tbm_queue) {
+		queue_info->width = width;
+		queue_info->height = height;
+		queue_info->format = format;
+		queue_info->flag = 0;
+
+		queue_info->tbm_queue = tbm_surface_queue_sequence_create(queue_size,
+					width, height, format, 0);
+
+		WL_TBM_GOTO_IF_FAIL(queue_info->tbm_queue != NULL, fail);
+
+		tbm_surface_queue_set_alloc_cb(queue_info->tbm_queue,
+					       __tbm_surface_alloc_cb,
+					       __tbm_surface_free_cb,
+					       queue_info);
+
+		tbm_surface_queue_add_destroy_cb(queue_info->tbm_queue,
+			handle_tbm_surface_queue_notify, queue_info);
+	} else {
+		WL_TBM_C_LOG("INFO cur(%dx%d fmt:0x%x num:%d) new(%dx%d fmt:0x%x num:%d)\n",
+			queue_info->width, queue_info->height,
+			queue_info->format, queue_info->num_bufs,
+			width, height, format, queue_size);
+	}
 
 	return queue_info->tbm_queue;
 fail:
-	if (queue_info)
+	if (queue_info) {
+		if (queue_info->wl_tbm_queue)
+			wl_tbm_queue_destroy(queue_info->wl_tbm_queue);
+
 		free(queue_info);
+	}
 	return NULL;
 }
 

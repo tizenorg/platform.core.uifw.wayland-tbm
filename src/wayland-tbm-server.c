@@ -709,9 +709,6 @@ _create_tbm_queue(struct wl_client *client,
 				       (void (* *)(void)) &_wayland_tbm_queue_impementation,
 				       queue, _destory_tbm_queue);
 	wl_list_insert(&tbm_srv->queue_list, &queue->link);
-
-	//send info
-	wl_tbm_queue_send_info(queue->resource, 1, 1, TBM_FORMAT_ABGR8888, 0, 3);
 }
 
 static void
@@ -893,8 +890,7 @@ wayland_tbm_server_create_queue(struct wayland_tbm_server *tbm_srv,
 }
 
 int
-wayland_tbm_server_queue_set_surface(struct wayland_tbm_server_queue
-				     *server_queue,
+wayland_tbm_server_queue_set_surface(struct wayland_tbm_server_queue *server_queue,
 				     struct wl_resource *surface, uint32_t usage)
 {
 	struct wl_tbm_queue *client_queue = NULL;
@@ -924,6 +920,13 @@ wayland_tbm_server_queue_set_surface(struct wayland_tbm_server_queue
 		client_queue->server_queue = server_queue;
 
 		wl_tbm_queue_send_active(client_queue->resource, usage);
+		wl_tbm_queue_send_info(client_queue->resource,
+				tbm_surface_queue_get_width(server_queue->tbm_queue),
+				tbm_surface_queue_get_height(server_queue->tbm_queue),
+				tbm_surface_queue_get_format(server_queue->tbm_queue),
+				TBM_BO_SCANOUT,
+				tbm_surface_queue_get_size(server_queue->tbm_queue));
+
 		_server_queue_buffer_attach_free_queue(client_queue);
 		tbm_surface_queue_add_dequeuable_cb(server_queue->tbm_queue,
 						    _server_queue_dequeuable_cb, client_queue);
