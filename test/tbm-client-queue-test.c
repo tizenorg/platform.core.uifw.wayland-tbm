@@ -23,6 +23,8 @@ typedef struct {
 	tbm_surface_queue_h surface_queue;
 
 	int try_draw;
+	int exit;
+	int count;
 } AppInfoClient;
 
 typedef struct {
@@ -43,6 +45,18 @@ _create_surface_and_queue(AppInfoClient *app)
 			     TBM_FORMAT_ABGR8888);
 	WL_APP_C_LOG("surface:%p, surface_queue:%p\n", app->surface,
 		     app->surface_queue);
+	return;
+}
+
+static void
+_destroy_surface_and_queue(AppInfoClient *app)
+{
+	tbm_surface_queue_destroy(app->surface_queue);
+	wl_test_surface_destroy(app->surface);
+
+	WL_APP_C_LOG("surface:%p, surface_queue:%p\n", app->surface,
+		     app->surface_queue);
+
 	return;
 }
 
@@ -112,6 +126,11 @@ _drawing_surface(AppInfoClient *app)
 	tbm_surface_info_s info;
 	struct wl_buffer *wl_buffer;
 	struct wl_callback *wl_callback;
+
+	app->count++;
+	if (app->count == 10) {
+		app->exit = 1;
+	}
 
 	if (!tbm_surface_queue_can_dequeue(surface_queue, 0)) {
 		WL_APP_C_LOG("Wait free_buffer\n");
@@ -192,6 +211,7 @@ main(int argc, char *argv[])
 	const char *dpy_name = NULL;
 	const static char *default_dpy_name = "queue";
 	int ret = 0;
+	tbm_bufmgr bufmgr = NULL;
 
 	if (argc > 1) {
 		dpy_name = argv[1];
@@ -218,14 +238,22 @@ main(int argc, char *argv[])
 		WL_APP_C_LOG("fail to wayland_tbm_client_init()\n");
 		goto finish;
 	}
+	bufmgr = tbm_bufmgr_init(-1);
+	tbm_bufmgr_debug_show(bufmgr);
 
 	_create_surface_and_queue(&gApp);
 	_drawing_surface(&gApp);
-	while (ret >= 0) {
+	while (ret >= 0 && gApp.exit == 0) {
 		ret = wl_display_dispatch(dpy);
 		if (gApp.try_draw)
 			_drawing_surface(&gApp);
 	}
+
+	tbm_bufmgr_debug_show(bufmgr);
 finish:
+	if (gApp.surface)
+		_destroy_surface_and_queue(&gApp);
+	if (bufmgr)
+		tbm_bufmgr_debug_show(bufmgr);
 	return 1;
 }
