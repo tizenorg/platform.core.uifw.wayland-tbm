@@ -53,6 +53,13 @@ struct wl_tbm_test_interface {
 	void (*create_surface)(struct wl_client *client,
 			       struct wl_resource *resource,
 			       uint32_t surface);
+	/**
+	 * set_active_queue - (none)
+	 * @surface: (none)
+	 */
+	void (*set_active_queue)(struct wl_client *client,
+				 struct wl_resource *resource,
+				 struct wl_resource *surface);
 };
 
 
