@@ -40,6 +40,9 @@ extern "C" {
 
 struct wayland_tbm_server;
 struct wayland_tbm_server_queue;
+struct wayland_tbm_client_queue;
+
+#define TBM_DEPRECATED
 
 struct wayland_tbm_server *
 wayland_tbm_server_init(struct wl_display *display,
@@ -54,27 +57,32 @@ void *
 wayland_tbm_server_get_bufmgr(struct wayland_tbm_server	*tbm_srv);
 
 tbm_surface_h
-wayland_tbm_server_get_surface(struct wayland_tbm_server	*tbm_srv,
+wayland_tbm_server_get_surface(struct wayland_tbm_server *tbm_srv,
 			       struct wl_resource *resource);
 
-struct wl_resource *
-wayland_tbm_server_get_resource(struct wayland_tbm_server *tbm_srv,
-				tbm_surface_h surface);
-
 uint32_t
-wayland_tbm_server_get_flags(struct wayland_tbm_server *tbm_srv,
-			     struct wl_resource *resource);
+wayland_tbm_server_get_buffer_flags(struct wayland_tbm_server *tbm_srv,
+					struct wl_resource *wl_buffer);
 
-struct wayland_tbm_server_queue *
-wayland_tbm_server_create_queue(struct wayland_tbm_server *tbm_srv,
-				tbm_surface_queue_h queue, uint32_t flags);
+void
+wayland_tbm_server_set_buffer_implementation(struct wl_resource *wl_buffer,
+					const struct wl_buffer_interface* impl, void* user_data);
 
 
-int
-wayland_tbm_server_queue_set_surface(struct wayland_tbm_server_queue
-				     *server_queue,
-				     struct wl_resource *surface, uint32_t usage);
+struct wayland_tbm_client_queue *
+wayland_tbm_server_client_queue_get(struct wayland_tbm_server *tbm_srv,
+					struct wl_resource *surface);
 
+void
+wayland_tbm_server_client_queue_activate(struct wayland_tbm_client_queue *client_queue,
+					uint32_t usage);
+
+void
+wayland_tbm_server_client_queue_deactivate(struct wayland_tbm_client_queue *client_queue);
+
+struct wl_resource *
+wayland_tbm_server_client_queue_export_buffer( struct wayland_tbm_client_queue *client_queue,
+					tbm_surface_h surface, uint32_t flags);
 
 #ifdef  __cplusplus
 }

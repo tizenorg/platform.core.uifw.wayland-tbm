@@ -67,6 +67,9 @@ struct wl_tbm_buffer {
 	tbm_surface_h tbm_surface;
 	tbm_surface_queue_h tbm_queue;
 	int flags;
+
+	const struct wl_buffer_interface *impl;
+	void *user_data;
 };
 
 struct wayland_tbm_client_resource {
@@ -82,10 +85,10 @@ struct wayland_tbm_server_queue {
 	tbm_surface_queue_h tbm_queue;
 	uint32_t flags;
 
-	struct wl_tbm_queue *client_queue;
+	struct wayland_tbm_client_queue *client_queue;
 };
 
-struct wl_tbm_queue {
+struct wayland_tbm_client_queue {
 	struct wl_list link;
 
 	struct wl_resource *resource;
@@ -94,6 +97,7 @@ struct wl_tbm_queue {
 	struct wayland_tbm_server_queue *server_queue;
 
 	int num_attached;
+	struct wl_list attached_list;
 };
 
 static const int key_wl_tbm_queue;
@@ -137,6 +141,14 @@ _destroy_buffer(struct wl_resource *resource)
 static void
 _buffer_destroy(struct wl_client *client, struct wl_resource *resource)
 {
+	struct wl_tbm_buffer *buffer = wl_resource_get_user_data(resource);
+
+	if (buffer->impl) {
+		wl_resource_set_user_data(resource, buffer->user_data);
+		buffer->impl->destroy(client, resource);
+		wl_resource_set_user_data(resource, buffer);
+	}
+
 	wl_resource_destroy(resource);
 }
 
@@ -562,7 +574,7 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name,
 	tbm_srv->wl_tbm_global = wl_global_create(display, &wl_tbm_interface, 1,
 				 tbm_srv, _wayland_tbm_server_bind_cb);
 
-	//init wl_tbm_queue
+	//init wayland_tbm_client_queue
 	wl_list_init(&tbm_srv->queue_list);
 
 	return tbm_srv;
@@ -596,38 +608,6 @@ wayland_tbm_server_get_surface(struct wayland_tbm_server *tbm_srv,
 	return NULL;
 }
 
-struct wl_resource *
-wayland_tbm_server_get_resource(struct wayland_tbm_server *tbm_srv,
-				tbm_surface_h surface)
-{
-	struct wl_tbm_buffer *wl_buffer = NULL;
-
-	tbm_surface_internal_get_user_data(surface, KEY_WL_TBM_BUFFER,
-					   (void **)&wl_buffer);
-	if (wl_buffer)
-		return wl_buffer->resource;
-
-	return NULL;
-}
-
-uint32_t
-wayland_tbm_server_get_flags(struct wayland_tbm_server *tbm_srv,
-			     struct wl_resource *resource)
-{
-	struct wl_tbm_buffer *wl_buffer;
-
-	if (resource == NULL)
-		return 0;
-
-	if (wl_resource_instance_of(resource, &wl_buffer_interface,
-				    &_wayland_tbm_buffer_impementation)) {
-		wl_buffer = wl_resource_get_user_data(resource);
-		return wl_buffer->flags;
-	}
-
-	return 0;
-}
-
 void *
 wayland_tbm_server_get_bufmgr(struct wayland_tbm_server *tbm_srv)
 {
@@ -656,10 +636,10 @@ static const struct wl_tbm_queue_interface _wayland_tbm_queue_impementation = {
 	_wayland_tbm_queue_impl_detach_buffer,
 };
 
-struct wl_tbm_queue *
+struct wayland_tbm_client_queue *
 _find_tbm_queue(struct wayland_tbm_server *tbm_srv, struct wl_resource *surface)
 {
-	struct wl_tbm_queue *queue = NULL;
+	struct wayland_tbm_client_queue *queue = NULL;
 
 	wl_list_for_each(queue, &tbm_srv->queue_list, link) {
 		if (queue && queue->surface == surface)
@@ -672,11 +652,19 @@ _find_tbm_queue(struct wayland_tbm_server *tbm_srv, struct wl_resource *surface)
 static void
 _destory_tbm_queue(struct wl_resource *resource)
 {
-	struct wl_tbm_queue *queue = wl_resource_get_user_data(resource);
+	struct wayland_tbm_client_queue *queue = wl_resource_get_user_data(resource);
 
-	wl_list_remove(&queue->link);
+	if (queue) {
+		if (queue->server_queue) {
+			struct wayland_tbm_server_queue *server_queue = queue->server_queue;
 
-	free(queue);
+			server_queue->client_queue = NULL;
+		}
+
+		wl_list_remove(&queue->link);
+		free(queue);
+		wl_resource_set_user_data(resource, NULL);
+	}
 }
 
 static void
@@ -686,7 +674,7 @@ _create_tbm_queue(struct wl_client *client,
 		  struct wl_resource *surface)
 {
 	struct wayland_tbm_server *tbm_srv = wl_resource_get_user_data(resource);
-	struct wl_tbm_queue *queue;
+	struct wayland_tbm_client_queue *queue;
 
 	queue = calloc(1, sizeof * queue);
 	if (queue == NULL) {
@@ -711,9 +699,34 @@ _create_tbm_queue(struct wl_client *client,
 	wl_list_insert(&tbm_srv->queue_list, &queue->link);
 }
 
-static void
-_server_queue_buffer_attach(struct wl_tbm_queue *client_queue,
-			    tbm_surface_h buffer)
+uint32_t
+wayland_tbm_server_get_buffer_flags(struct wayland_tbm_server *tbm_srv, struct wl_resource *wl_buffer)
+{
+	struct wl_tbm_buffer *buffer;
+	WL_TBM_RETURN_VAL_IF_FAIL(wl_buffer != NULL, 0);
+
+	if (wl_resource_instance_of(wl_buffer, &wl_buffer_interface,
+				    &_wayland_tbm_buffer_impementation)) {
+		buffer = wl_resource_get_user_data(wl_buffer);
+		return buffer->flags;
+	}
+
+	return 0;
+}
+
+void
+wayland_tbm_server_set_buffer_implementation(struct wl_resource *wl_buffer, const struct wl_buffer_interface* impl, void* user_data)
+{
+	struct wl_tbm_buffer *buffer = wl_resource_get_user_data(wl_buffer);
+	WL_TBM_RETURN_IF_FAIL(buffer != NULL);
+
+	buffer->impl = impl;
+	buffer->user_data = user_data;
+}
+
+static struct wl_resource*
+_export_buffer_to_client_queue(struct wayland_tbm_client_queue *client_queue,
+			    tbm_surface_h buffer, uint32_t flags)
 {
 	struct wl_tbm_buffer *wl_tbm_buffer = NULL;
 	tbm_surface_info_s info;
@@ -721,26 +734,24 @@ _server_queue_buffer_attach(struct wl_tbm_queue *client_queue,
 	int bufs[TBM_SURF_PLANE_MAX] = { -1, -1, -1, -1};
 	int is_fd = -1;
 	int ret = -1, i;
-	uint32_t flags;
 
-	flags = client_queue->server_queue->flags;
-	wl_tbm_buffer = _create_wl_buffer(wl_resource_get_client(client_queue->wl_tbm),
+	wl_tbm_buffer = _create_wl_buffer(wl_resource_get_client(client_queue->resource),
 					  client_queue->wl_tbm,
 					  0, buffer, flags);
-	WL_TBM_RETURN_IF_FAIL(wl_tbm_buffer != NULL);
+	WL_TBM_RETURN_VAL_IF_FAIL(wl_tbm_buffer != NULL, NULL);
 	tbm_surface_internal_ref(buffer);
 
 	ret = tbm_surface_get_info(buffer, &info);
 	if (ret != TBM_SURFACE_ERROR_NONE) {
 		WL_TBM_S_LOG("Failed to create buffer from surface\n");
 		_destroy_buffer(wl_tbm_buffer->resource);
-		return;
+		return NULL;
 	}
 
 	if (info.num_planes > 3) {
 		WL_TBM_S_LOG("invalid num_planes(%d)\n", info.num_planes);
 		_destroy_buffer(wl_tbm_buffer->resource);
-		return;
+		return NULL;
 	}
 
 	num_buf = tbm_surface_internal_get_num_bos(buffer);
@@ -812,8 +823,9 @@ _server_queue_buffer_attach(struct wl_tbm_queue *client_queue,
 			close(bufs[i]);
 	}
 
-	wl_tbm_buffer->tbm_queue = client_queue->server_queue->tbm_queue;
-	return;
+	WL_TBM_S_LOG("Release wl_tbm_queue tbm_surface(%p).\n", wl_tbm_buffer->tbm_surface);
+
+	return wl_tbm_buffer->resource;
 err:
 	for (i = 0; i < TBM_SURF_PLANE_MAX; i++) {
 		if (is_fd == 1 && (bufs[i] >= 0))
@@ -825,116 +837,56 @@ err:
 		tbm_surface_internal_unref(buffer);
 	}
 
-	return;
+	return NULL;
 }
 
-static void
-_server_queue_buffer_attach_free_queue(struct wl_tbm_queue *client_queue)
+struct wayland_tbm_client_queue *
+wayland_tbm_server_client_queue_get(struct wayland_tbm_server *tbm_srv, struct wl_resource *surface)
 {
-	tbm_surface_queue_h queue;
-	tbm_surface_h buffer;
-	struct wl_resource *wl_buffer;
-
-	queue = client_queue->server_queue->tbm_queue;
-	while (tbm_surface_queue_can_dequeue(queue, 0)) {
-		tbm_surface_queue_dequeue(queue, &buffer);
-
-		wl_buffer = wayland_tbm_server_get_resource(NULL, buffer);
-		if (wl_buffer) {
-			wl_buffer_send_release(wl_buffer);
-			continue;
-		}
-
-		_server_queue_buffer_attach(client_queue, buffer);
-	}
-}
-
-static void
-_server_queue_dequeuable_cb(tbm_surface_queue_h surface_queue,
-			    void *data)
-{
-	struct wl_tbm_queue *client_queue = data;
-	struct wl_resource *wl_buffer;
-	tbm_surface_h buffer = NULL;
-
-	tbm_surface_queue_dequeue(surface_queue, &buffer);
-	WL_TBM_RETURN_IF_FAIL(buffer != NULL);
-
-	wl_buffer = wayland_tbm_server_get_resource(NULL, buffer);
-	if (wl_buffer) {
-		wl_buffer_send_release(wl_buffer);
-		return;
-	}
-
-	_server_queue_buffer_attach(client_queue, buffer);
-}
-
-struct wayland_tbm_server_queue *
-wayland_tbm_server_create_queue(struct wayland_tbm_server *tbm_srv,
-				tbm_surface_queue_h queue, uint32_t flags)
-{
-	struct wayland_tbm_server_queue *server_queue = NULL;
-
+	struct wayland_tbm_client_queue *client_queue = NULL;
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_srv != NULL, NULL);
-	WL_TBM_RETURN_VAL_IF_FAIL(queue != NULL, NULL);
+	WL_TBM_RETURN_VAL_IF_FAIL(surface != NULL, NULL);
 
-	server_queue = calloc(1, sizeof(struct wayland_tbm_server_queue));
-	WL_TBM_RETURN_VAL_IF_FAIL(server_queue != NULL, NULL);
+	wl_list_for_each(client_queue, &tbm_srv->queue_list, link) {
+		if (client_queue && client_queue->surface == surface)
+			return client_queue;
+	}
 
-	server_queue->tbm_srv = tbm_srv;
-	server_queue->tbm_queue = queue;
-	server_queue->flags = flags;
-	wl_list_insert(&tbm_srv->server_queue_list, &server_queue->link);
-
-	return server_queue;
+	return NULL;
 }
 
-int
-wayland_tbm_server_queue_set_surface(struct wayland_tbm_server_queue *server_queue,
-				     struct wl_resource *surface, uint32_t usage)
+void
+wayland_tbm_server_client_queue_activate(struct wayland_tbm_client_queue *client_queue, uint32_t usage)
 {
-	struct wl_tbm_queue *client_queue = NULL;
+	WL_TBM_RETURN_IF_FAIL(client_queue != NULL);
 
-	WL_TBM_RETURN_VAL_IF_FAIL(server_queue != NULL, 0);
-
-	if (surface) {
-		client_queue = _find_tbm_queue(server_queue->tbm_srv, surface);
-		WL_TBM_RETURN_VAL_IF_FAIL(client_queue != NULL, 0);
-	}
-
-	if (client_queue == server_queue->client_queue)
-		return 1;
-
-	if (server_queue->client_queue) {
-		//Send deactivate;
-		server_queue->client_queue->server_queue = NULL;
-
-		tbm_surface_queue_remove_dequeuable_cb(server_queue->tbm_queue,
-						       _server_queue_dequeuable_cb,
-						       server_queue->client_queue);
-		wl_tbm_queue_send_deactive(server_queue->client_queue->resource);
-	}
-
-	if (client_queue) {
-		//Send activate and attach free buffer;
-		client_queue->server_queue = server_queue;
-
-		wl_tbm_queue_send_active(client_queue->resource, usage);
-		wl_tbm_queue_send_info(client_queue->resource,
-				tbm_surface_queue_get_width(server_queue->tbm_queue),
-				tbm_surface_queue_get_height(server_queue->tbm_queue),
-				tbm_surface_queue_get_format(server_queue->tbm_queue),
-				TBM_BO_SCANOUT,
-				tbm_surface_queue_get_size(server_queue->tbm_queue));
-
-		_server_queue_buffer_attach_free_queue(client_queue);
-		tbm_surface_queue_add_dequeuable_cb(server_queue->tbm_queue,
-						    _server_queue_dequeuable_cb, client_queue);
-	}
-
-	server_queue->client_queue = client_queue;
-
-	return 1;
+	wl_tbm_queue_send_active(client_queue->resource, usage);
 }
 
+void
+wayland_tbm_server_client_queue_deactivate(struct wayland_tbm_client_queue *client_queue)
+{
+	WL_TBM_RETURN_IF_FAIL(client_queue != NULL);
 
+	wl_tbm_queue_send_deactive(client_queue->resource);
+}
+
+struct wl_resource *
+wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *client_queue, tbm_surface_h surface, uint32_t flags)
+{
+	void *data = NULL;
+	struct wl_resource *wl_buffer = NULL;
+
+	WL_TBM_RETURN_VAL_IF_FAIL(client_queue != NULL, wl_buffer);
+	WL_TBM_RETURN_VAL_IF_FAIL(surface != NULL, wl_buffer);
+
+	tbm_surface_internal_get_user_data(surface, KEY_WL_TBM_BUFFER, &data);
+	if (data != NULL) {
+		WL_TBM_S_LOG("WARNING...surface(%p) is already export\n", surface);
+		return NULL;
+	}
+
+	wl_buffer = _export_buffer_to_client_queue(client_queue, surface, flags);
+
+	return wl_buffer;
+}
