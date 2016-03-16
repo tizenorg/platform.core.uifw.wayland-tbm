@@ -46,8 +46,10 @@ extern const struct wl_interface wl_tbm_test_interface;
 extern const struct wl_interface wl_test_surface_interface;
 
 #define WL_TBM_TEST_CREATE_SURFACE	0
+#define WL_TBM_TEST_SET_ACTIVE_QUEUE	1
 
 #define WL_TBM_TEST_CREATE_SURFACE_SINCE_VERSION	1
+#define WL_TBM_TEST_SET_ACTIVE_QUEUE_SINCE_VERSION	1
 
 static inline void
 wl_tbm_test_set_user_data(struct wl_tbm_test *wl_tbm_test, void *user_data)
@@ -73,9 +75,16 @@ wl_tbm_test_create_surface(struct wl_tbm_test *wl_tbm_test)
 	struct wl_proxy *surface;
 
 	surface = wl_proxy_marshal_constructor((struct wl_proxy *) wl_tbm_test,
-					       WL_TBM_TEST_CREATE_SURFACE, &wl_test_surface_interface, NULL);
+			 WL_TBM_TEST_CREATE_SURFACE, &wl_test_surface_interface, NULL);
 
 	return (struct wl_test_surface *) surface;
+}
+
+static inline void
+wl_tbm_test_set_active_queue(struct wl_tbm_test *wl_tbm_test, struct wl_test_surface *surface)
+{
+	wl_proxy_marshal((struct wl_proxy *) wl_tbm_test,
+			 WL_TBM_TEST_SET_ACTIVE_QUEUE, surface);
 }
 
 #define WL_TEST_SURFACE_DESTROY	0
@@ -87,8 +96,7 @@ wl_tbm_test_create_surface(struct wl_tbm_test *wl_tbm_test)
 #define WL_TEST_SURFACE_FRAME_SINCE_VERSION	1
 
 static inline void
-wl_test_surface_set_user_data(struct wl_test_surface *wl_test_surface,
-			      void *user_data)
+wl_test_surface_set_user_data(struct wl_test_surface *wl_test_surface, void *user_data)
 {
 	wl_proxy_set_user_data((struct wl_proxy *) wl_test_surface, user_data);
 }
@@ -109,8 +117,7 @@ wl_test_surface_destroy(struct wl_test_surface *wl_test_surface)
 }
 
 static inline void
-wl_test_surface_attach(struct wl_test_surface *wl_test_surface,
-		       struct wl_buffer *buffer)
+wl_test_surface_attach(struct wl_test_surface *wl_test_surface, struct wl_buffer *buffer)
 {
 	wl_proxy_marshal((struct wl_proxy *) wl_test_surface,
 			 WL_TEST_SURFACE_ATTACH, buffer);
@@ -122,7 +129,7 @@ wl_test_surface_frame(struct wl_test_surface *wl_test_surface)
 	struct wl_proxy *callback;
 
 	callback = wl_proxy_marshal_constructor((struct wl_proxy *) wl_test_surface,
-						WL_TEST_SURFACE_FRAME, &wl_callback_interface, NULL);
+			 WL_TEST_SURFACE_FRAME, &wl_callback_interface, NULL);
 
 	return (struct wl_callback *) callback;
 }

@@ -94,6 +94,7 @@ struct wl_tbm_queue {
 	struct wayland_tbm_server_queue *server_queue;
 
 	int num_attached;
+	struct wl_list attached_list;
 };
 
 static const int key_wl_tbm_queue;
@@ -111,6 +112,9 @@ static void _destory_tbm_queue(struct wl_resource *resource);
 
 static void _buffer_destroy(struct wl_client *client,
 			    struct wl_resource *resource);
+
+static void _server_queue_dequeuable_cb(tbm_surface_queue_h surface_queue,
+			    void *data);
 
 static const struct wl_buffer_interface _wayland_tbm_buffer_impementation = {
 	_buffer_destroy
@@ -674,9 +678,20 @@ _destory_tbm_queue(struct wl_resource *resource)
 {
 	struct wl_tbm_queue *queue = wl_resource_get_user_data(resource);
 
-	wl_list_remove(&queue->link);
+	if (queue) {
+		if (queue->server_queue) {
+			struct wayland_tbm_server_queue *server_queue = queue->server_queue;
 
-	free(queue);
+			tbm_surface_queue_remove_dequeuable_cb(server_queue->tbm_queue,
+							       _server_queue_dequeuable_cb,
+							       server_queue->client_queue);
+			server_queue->client_queue = NULL;
+		}
+
+		wl_list_remove(&queue->link);
+		free(queue);
+		wl_resource_set_user_data(resource, NULL);
+	}
 }
 
 static void
@@ -936,4 +951,16 @@ wayland_tbm_server_queue_set_surface(struct wayland_tbm_server_queue *server_que
 	return 0;
 }
 
+struct wl_resource *
+wayland_tbm_server_get_surface_queue(struct wayland_tbm_server *tbm_srv,
+				struct wl_resource *surface)
+{
+	struct wl_tbm_queue *client_queue = NULL;
+	WL_TBM_RETURN_VAL_IF_FAIL(tbm_srv != NULL, NULL);
+	WL_TBM_RETURN_VAL_IF_FAIL(surface != NULL, NULL);
 
+	client_queue = _find_tbm_queue(tbm_srv, surface);
+	WL_TBM_RETURN_VAL_IF_FAIL(client_queue != NULL, NULL);
+
+	return client_queue->resource;
+}
