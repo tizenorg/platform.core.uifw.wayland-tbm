@@ -30,6 +30,9 @@
   	<request name="create_surface">
   		<arg name="surface" type="new_id" interface="wl_test_surface"/>
   	</request>
+  	<request name="set_active_queue">
+  		<arg name="surface" type="object" interface="wl_test_surface"/>
+  	</request>
   </interface>
 
   <interface name="wl_test_surface" version="1">
