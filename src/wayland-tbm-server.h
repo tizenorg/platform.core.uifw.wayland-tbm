@@ -70,6 +70,10 @@ wayland_tbm_server_create_queue(struct wayland_tbm_server *tbm_srv,
 				tbm_surface_queue_h queue, uint32_t flags);
 
 
+struct wl_resource *
+wayland_tbm_server_get_surface_queue(struct wayland_tbm_server *tbm_srv,
+				struct wl_resource *surface);
+
 int
 wayland_tbm_server_queue_set_surface(struct wayland_tbm_server_queue
 				     *server_queue,
