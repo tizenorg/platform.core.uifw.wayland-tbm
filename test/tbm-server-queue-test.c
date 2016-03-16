@@ -40,6 +40,8 @@ struct _AppInfo {
 	uint32_t update_count;
 
 	tbm_surface_h front, back;
+
+	int test_mode;
 };
 
 struct _AppSurface {
@@ -138,8 +140,24 @@ _wl_tbm_test_create_surface(struct wl_client *client,
 	SERVER_LOG("Add surface:%p\n", test_surface);
 }
 
+static void
+_wl_tbm_test_set_active_surface(struct wl_client *client,
+			    struct wl_resource *resource,
+			    struct wl_resource *surface)
+{
+	AppInfo *app = (AppInfo *)wl_resource_get_user_data(resource);
+	AppSurface *app_surface = (AppSurface *)wl_resource_get_user_data(surface);
+
+	wayland_tbm_server_queue_set_surface(app->server_queue,
+			surface, 0x1111);
+	app->active_surface = app_surface;
+
+	SERVER_LOG("Active surface:%p\n", app_surface);
+}
+
 static const struct wl_tbm_test_interface wl_tbm_test_impl = {
-	_wl_tbm_test_create_surface
+	_wl_tbm_test_create_surface,
+	_wl_tbm_test_set_active_surface
 };
 
 static void
@@ -256,22 +274,24 @@ wl_tbm_test_idle_cb(void *data)
 	tbm_surface_queue_enqueue(app->scanout_queue, back);
 
 present:
-	app->update_count++;
-	if (!(app->update_count % 5)) {
-		SERVER_LOG("MODE_CHANGE active:%p\n", app->active_surface);
-		if (app->active_surface) {
-			wayland_tbm_server_queue_set_surface(app->server_queue,
-							     NULL,
-							     0);
-			app->active_surface = NULL;
-		} else {
-			if (!wl_list_empty(&app->list_surface)) {
-				app_surface = wl_container_of(app->list_surface.next, app_surface, link);
-				if (wayland_tbm_server_queue_set_surface(app->server_queue,
-						app_surface->resource, 1)) {
-					SERVER_LOG("!! ERROR wayland_tbm_server_queue_set_surface\n");
-				} else {
-					app->active_surface = app_surface;
+	if (app->test_mode == 1) {
+		app->update_count++;
+		if (!(app->update_count % 5)) {
+			SERVER_LOG("MODE_CHANGE active:%p\n", app->active_surface);
+			if (app->active_surface) {
+				wayland_tbm_server_queue_set_surface(app->server_queue,
+								     NULL,
+								     0);
+				app->active_surface = NULL;
+			} else {
+				if (!wl_list_empty(&app->list_surface)) {
+					app_surface = wl_container_of(app->list_surface.next, app_surface, link);
+					if (wayland_tbm_server_queue_set_surface(app->server_queue,
+							app_surface->resource, 1)) {
+						SERVER_LOG("!! ERROR wayland_tbm_server_queue_set_surface\n");
+					} else {
+						app->active_surface = app_surface;
+					}
 				}
 			}
 		}
@@ -298,6 +318,11 @@ main(int argc, char *argv[])
 	tbm_surface_h init_front;
 
 	const char *dpy_name = "queue";
+
+	if (argc > 1) {
+		SERVER_LOG("TEST_MODE: %s\n", argv[1]);
+		gApp.test_mode = atoi(argv[1]);
+	}
 
 	dpy = wl_display_create();
 	if (!dpy) {
