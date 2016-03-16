@@ -45,7 +45,7 @@ DEALINGS IN THE SOFTWARE.
 
 #include "wayland-tbm-int.h"
 
-//#define WL_TBM_SERVER_DEBUG
+#define WL_TBM_SERVER_DEBUG
 
 #define MIN(x,y) (((x)<(y))?(x):(y))
 
@@ -895,15 +895,15 @@ wayland_tbm_server_queue_set_surface(struct wayland_tbm_server_queue *server_que
 {
 	struct wl_tbm_queue *client_queue = NULL;
 
-	WL_TBM_RETURN_VAL_IF_FAIL(server_queue != NULL, 1);
+	WL_TBM_RETURN_VAL_IF_FAIL(server_queue != NULL, 0);
 
 	if (surface) {
 		client_queue = _find_tbm_queue(server_queue->tbm_srv, surface);
-		WL_TBM_RETURN_VAL_IF_FAIL(client_queue != NULL, 2);
+		WL_TBM_RETURN_VAL_IF_FAIL(client_queue != NULL, 0);
 	}
 
 	if (client_queue == server_queue->client_queue)
-		return 0;
+		return 1;
 
 	if (server_queue->client_queue) {
 		//Send deactivate;
@@ -933,7 +933,8 @@ wayland_tbm_server_queue_set_surface(struct wayland_tbm_server_queue *server_que
 	}
 
 	server_queue->client_queue = client_queue;
-	return 0;
+
+	return 1;
 }
 
 
