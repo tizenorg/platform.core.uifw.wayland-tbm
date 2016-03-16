@@ -33,24 +33,26 @@ extern const struct wl_interface wl_test_surface_interface;
 
 static const struct wl_interface *types[] = {
 	&wl_test_surface_interface,
+	&wl_test_surface_interface,
 	&wl_buffer_interface,
 	&wl_callback_interface,
 };
 
 static const struct wl_message wl_tbm_test_requests[] = {
 	{ "create_surface", "n", types + 0 },
+	{ "set_active_queue", "o", types + 1 },
 };
 
 WL_EXPORT const struct wl_interface wl_tbm_test_interface = {
 	"wl_tbm_test", 1,
-	1, wl_tbm_test_requests,
+	2, wl_tbm_test_requests,
 	0, NULL,
 };
 
 static const struct wl_message wl_test_surface_requests[] = {
 	{ "destroy", "", types + 0 },
-	{ "attach", "o", types + 1 },
-	{ "frame", "n", types + 2 },
+	{ "attach", "o", types + 2 },
+	{ "frame", "n", types + 3 },
 };
 
 WL_EXPORT const struct wl_interface wl_test_surface_interface = {

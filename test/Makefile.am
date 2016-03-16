@@ -3,7 +3,8 @@ TESTS = 			\
 	tbm-client-test \
 	tbm-subcomp-test \
 	tbm-server-queue-test	\
-	tbm-client-queue-test
+	tbm-client-queue-test	\
+	tbm-leak-test
 
 
 #bin_PROGRAMS = $(TESTS)
@@ -39,3 +40,7 @@ tbm_server_queue_test_SOURCES = $(PROTOCOL_SOURCES) tbm-server-queue-test.c
 tbm_client_queue_test_LDADD = $(CLIENT_TEST_LDADD)
 tbm_client_queue_test_CFLAGS = $(CLIENT_TEST_CFLAGS)
 tbm_client_queue_test_SOURCES = $(PROTOCOL_SOURCES) tbm-client-queue-test.c
+
+tbm_leak_test_LDADD = $(CLIENT_TEST_LDADD)
+tbm_leak_test_CFLAGS = $(CLIENT_TEST_CFLAGS)
+tbm_leak_test_SOURCES = $(PROTOCOL_SOURCES) tbm-leak-test.c
