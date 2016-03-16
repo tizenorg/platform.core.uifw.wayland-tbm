@@ -442,11 +442,16 @@ __tbm_surface_from_param(tbm_bufmgr bufmgr,
 	}
 	tbm_surface = tbm_surface_internal_create_with_bos(&info, bos, numName);
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_surface != NULL, NULL);
+	WL_TBM_C_LOG("Buffer Attached tbm_surface:%p\n", tbm_surface);
 
 	if (is_fd) {
 		close(buf0);
 		close(buf1);
 		close(buf2);
+	}
+
+	for (i = 0; i < numName; i++) {
+		tbm_bo_unref(bos[i]);
 	}
 
 	return tbm_surface;
@@ -731,14 +736,26 @@ const struct wl_tbm_queue_listener wl_tbm_queue_listener = {
 };
 
 static void
-handle_tbm_surface_queue_notify(tbm_surface_queue_h surface_queue,
+handle_tbm_surface_queue_destroy_notify(tbm_surface_queue_h surface_queue,
 		void *data)
 {
 	struct wayland_tbm_surface_queue *queue_info = data;
+	struct wayland_tbm_buffer *buffer, *tmp;
 	WL_TBM_C_LOG("\n");
 
 	if (queue_info->wl_tbm_queue)
 		wl_tbm_queue_destroy(queue_info->wl_tbm_queue);
+
+	wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
+		if (buffer->wl_buffer) {
+			wl_buffer_destroy(buffer->wl_buffer);
+			buffer->wl_buffer = NULL;
+		}
+
+		tbm_surface_internal_set_user_data(buffer->tbm_surface, KEY_WL_TBM_BUFFER, NULL);
+		tbm_surface_internal_delete_user_data(buffer->tbm_surface, KEY_WL_TBM_BUFFER);
+		tbm_surface_destroy(buffer->tbm_surface);
+	}
 
 	free(queue_info);
 }
@@ -784,7 +801,7 @@ wayland_tbm_client_create_surface_queue(struct wayland_tbm_client *tbm_client,
 					       queue_info);
 
 		tbm_surface_queue_add_destroy_cb(queue_info->tbm_queue,
-			handle_tbm_surface_queue_notify, queue_info);
+			handle_tbm_surface_queue_destroy_notify, queue_info);
 	} else {
 		WL_TBM_C_LOG("INFO cur(%dx%d fmt:0x%x num:%d) new(%dx%d fmt:0x%x num:%d)\n",
 			queue_info->width, queue_info->height,
