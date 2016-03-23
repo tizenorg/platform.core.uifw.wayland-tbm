@@ -588,10 +588,6 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name,
 		return NULL;
 	}
 
-	if (!getenv("WL_TBM_EMBEDDED_SERVER")) {
-		WL_TBM_S_LOG("Bind start\n");
-		tbm_bufmgr_bind_native_display(tbm_srv->bufmgr, (void *)display);
-	}
 	tbm_srv->wl_tbm_global = wl_global_create(display, &wl_tbm_interface, 1,
 				 tbm_srv, _wayland_tbm_server_bind_cb);
 
