@@ -442,7 +442,6 @@ __tbm_surface_from_param(tbm_bufmgr bufmgr,
 	}
 	tbm_surface = tbm_surface_internal_create_with_bos(&info, bos, numName);
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_surface != NULL, NULL);
-	WL_TBM_C_LOG("Buffer Attached tbm_surface:%p\n", tbm_surface);
 
 	if (is_fd) {
 		close(buf0);
@@ -742,7 +741,6 @@ handle_tbm_surface_queue_destroy_notify(tbm_surface_queue_h surface_queue,
 {
 	struct wayland_tbm_surface_queue *queue_info = data;
 	struct wayland_tbm_buffer *buffer, *tmp;
-	WL_TBM_C_LOG("\n");
 
 	if (queue_info->wl_tbm_queue)
 		wl_tbm_queue_destroy(queue_info->wl_tbm_queue);
