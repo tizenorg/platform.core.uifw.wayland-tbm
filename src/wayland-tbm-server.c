@@ -45,7 +45,14 @@ DEALINGS IN THE SOFTWARE.
 
 #include "wayland-tbm-int.h"
 
-#define WL_TBM_SERVER_DEBUG
+//#define WL_TBM_SERVER_DEBUG
+#define DEBUG_TRACE
+#ifdef DEBUG_TRACE
+#define WL_TBM_TRACE(fmt, ...)   fprintf (stderr, "[WL_TBM_S(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
+#else
+#define WL_TBM_TRACE(fmt, ...)
+#endif
+
 
 #define MIN(x,y) (((x)<(y))?(x):(y))
 
@@ -81,6 +88,7 @@ struct wayland_tbm_client_queue {
 	struct wl_resource *wl_tbm;
 	struct wl_resource *wl_tbm_queue;
 	struct wl_resource *wl_surface;
+	pid_t pid;
 
 	struct wl_list link;
 };
@@ -94,16 +102,27 @@ const static int key_tbm_buffer;
 static void _wayland_tbm_server_tbm_buffer_destroy(struct wayland_tbm_buffer *tbm_buffer);
 
 static void
-_tbm_buffer_destroy(struct wl_resource *wl_buffer)
+_wayland_tbm_server_buffer_destory(struct wl_resource *wl_buffer)
 {
 	struct wayland_tbm_buffer *tbm_buffer = wl_resource_get_user_data(wl_buffer);
 
+#ifdef DEBUG_TRACE
+	pid_t pid = 0; uid_t uid = 0; gid_t gid = 0;
+	wl_client_get_credentials(tbm_buffer->client, &pid, &uid, &gid);
+	WL_TBM_TRACE("            pid:%d tbm_surface:%p\n", pid, tbm_buffer->surface);
+#endif
 	_wayland_tbm_server_tbm_buffer_destroy(tbm_buffer);
 }
 
 static void
 _wayland_tbm_server_tbm_buffer_impl_destroy(struct wl_client *client, struct wl_resource *wl_buffer)
 {
+#ifdef DEBUG_TRACE
+	pid_t pid = 0; uid_t uid = 0; gid_t gid = 0;
+	wl_client_get_credentials(client, &pid, &uid, &gid);
+	WL_TBM_TRACE("   pid:%d wl_buffer destoroy.\n", pid);
+#endif
+
     wl_resource_destroy(wl_buffer);
 }
 
@@ -147,7 +166,7 @@ _wayland_tbm_server_tbm_buffer_create(struct wl_resource *wl_tbm,
 
 	wl_resource_set_implementation(tbm_buffer->wl_buffer,
 				       (void (* *)(void)) &_wayland_tbm_buffer_impementation,
-				       tbm_buffer, _tbm_buffer_destroy);
+				       tbm_buffer, _wayland_tbm_server_buffer_destory);
 
 	tbm_buffer->flags = flags;
 	tbm_buffer->surface = surface;
@@ -176,6 +195,10 @@ _destroy_tbm_queue(struct wl_resource *wl_tbm_queue)
 	struct wayland_tbm_client_queue *cqueue = wl_resource_get_user_data(wl_tbm_queue);
 
 	if (cqueue) {
+#ifdef DEBUG_TRACE
+		WL_TBM_TRACE("destory queue. pid:%d\n", cqueue->pid);
+#endif
+
 		wl_list_remove(&cqueue->link);
 		free(cqueue);
 
@@ -187,6 +210,12 @@ static void
 _wayland_tbm_server_queue_impl_destroy(struct wl_client *client,
 				struct wl_resource *wl_tbm_queue)
 {
+#ifdef DEBUG_TRACE
+	pid_t pid = 0; uid_t uid = 0; gid_t gid = 0;
+	wl_client_get_credentials(client, &pid, &uid, &gid);
+	WL_TBM_TRACE("wl_tbm_queue destory. pid:%d\n", pid);
+#endif
+
 	wl_resource_destroy(wl_tbm_queue);
 }
 
@@ -195,6 +224,12 @@ _wayland_tbm_server_queue_impl_detach_buffer(struct wl_client *client,
 				      struct wl_resource *wl_tbm_queue,
 				      struct wl_resource *wl_buffer)
 {
+#ifdef DEBUG_TRACE
+	pid_t pid = 0; uid_t uid = 0; gid_t gid = 0;
+	wl_client_get_credentials(client, &pid, &uid, &gid);
+	WL_TBM_TRACE("detach buffer. pid:%d\n", pid);
+#endif
+
 }
 
 static const struct wl_tbm_queue_interface _wayland_tbm_queue_impementation = {
@@ -214,8 +249,8 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 	struct wayland_tbm_client_resource *c_res = NULL, *tmp_res = NULL;
 	int i = 0;
 
-#ifdef WL_TBM_SERVER_DEBUG
-	WL_TBM_LOG("[%s]: command=%d, trace_command=%d, target=%d, pid=%d.\n", __func__,
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("command=%d, trace_command=%d, target=%d, pid=%d.\n",
 		   command, trace_command, target, pid);
 #endif
 
@@ -318,10 +353,6 @@ _wayland_tbm_server_impl_create_buffer(struct wl_client *client,
 	int numPlane;
 	int i;
 
-#ifdef WL_TBM_SERVER_DEBUG
-	WL_TBM_LOG("[%s]: trying.\n", __func__);
-#endif
-
 	bpp = tbm_surface_internal_get_bpp(format);
 	numPlane = tbm_surface_internal_get_num_planes(format);
 	if (numPlane != num_plane) {
@@ -377,6 +408,12 @@ _wayland_tbm_server_impl_create_buffer(struct wl_client *client,
 		return;
 	}
 
+#ifdef DEBUG_TRACE
+	pid_t pid = 0; uid_t uid = 0; gid_t gid = 0;
+	wl_client_get_credentials(client, &pid, &uid, &gid);
+	WL_TBM_TRACE("pid:%d tbm_surface:%p\n", pid, surface);
+#endif
+
 }
 
 static void
@@ -399,10 +436,6 @@ _wayland_tbm_server_impl_create_buffer_with_fd(struct wl_client *client,
 	int bpp;
 	int numPlane;
 	int i;
-
-#ifdef WL_TBM_SERVER_DEBUG
-	WL_TBM_LOG("[%s]: trying.\n", __func__);
-#endif
 
 	bpp = tbm_surface_internal_get_bpp(format);
 	numPlane = tbm_surface_internal_get_num_planes(format);
@@ -459,6 +492,12 @@ _wayland_tbm_server_impl_create_buffer_with_fd(struct wl_client *client,
 		return;
 	}
 
+#ifdef DEBUG_TRACE
+	pid_t pid = 0; uid_t uid = 0; gid_t gid = 0;
+	wl_client_get_credentials(client, &pid, &uid, &gid);
+	WL_TBM_TRACE("pid:%d tbm_surface:%p\n", pid, surface);
+#endif
+
 	close(buf0);
 	close(buf1);
 	close(buf2);
@@ -472,6 +511,9 @@ _wayland_tbm_server_impl_create_surface_queue(struct wl_client *client,
 {
 	struct wayland_tbm_server *tbm_srv = wl_resource_get_user_data(wl_tbm);
 	struct wayland_tbm_client_queue *cqueue = NULL;
+	pid_t pid = 0;
+	uid_t uid = 0;
+	gid_t gid = 0;
 
 	cqueue = calloc(1, sizeof(struct wayland_tbm_client_queue));
 	if (!cqueue) {
@@ -489,6 +531,9 @@ _wayland_tbm_server_impl_create_surface_queue(struct wl_client *client,
 		return;
 	}
 
+	wl_client_get_credentials(client, &pid, &uid, &gid);
+	cqueue->pid = pid;
+
 	wl_resource_set_implementation(cqueue->wl_tbm_queue,
 				       (void (* *)(void)) &_wayland_tbm_queue_impementation,
 				       cqueue, _destroy_tbm_queue);
@@ -497,6 +542,11 @@ _wayland_tbm_server_impl_create_surface_queue(struct wl_client *client,
 
 	/* add a cqueue to the list */
 	wl_list_insert(&tbm_srv->cqueue_list, &cqueue->link);
+
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE(" pid:%d \n", pid);
+#endif
+
 }
 
 static const struct wl_tbm_interface _wayland_tbm_server_implementation = {
@@ -517,9 +567,8 @@ _wayland_tbm_server_destroy_resource(struct wl_resource *wl_tbm)
 	if (!wl_list_empty(&tbm_srv->cresource_list)) {
 		wl_list_for_each_safe(c_res, tmp_res, &tbm_srv->cresource_list, link) {
 			if (c_res->resource == wl_tbm) {
-#ifdef WL_TBM_SERVER_DEBUG
-				WL_TBM_LOG("[%s]: resource,%p pid,%d \n", __func__, c_res->resource,
-					   c_res->pid);
+#ifdef DEBUG_TRACE
+				WL_TBM_TRACE("pid:%d resource:%p\n", c_res->pid, c_res->resource);
 #endif
 				wl_list_remove(&c_res->link);
 				if (c_res->app_name)
@@ -559,8 +608,8 @@ _wayland_tbm_server_bind_cb(struct wl_client *client, void *data,
 	tbm_srv = wl_resource_get_user_data(wl_tbm);
 	wl_client_get_credentials(client, &pid, &uid, &gid);
 
-#ifdef WL_TBM_SERVER_DEBUG
-	WL_TBM_LOG("[%s]: resource,%p pid,%d \n", __func__, wl_tbm, pid);
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("wl_tbm bind pid:%d\n", pid);
 #endif
 
 	c_res = calloc (1, sizeof(struct wayland_tbm_client_resource));
@@ -678,6 +727,9 @@ wayland_tbm_server_client_queue_activate(struct wayland_tbm_client_queue *cqueue
 	WL_TBM_RETURN_IF_FAIL(cqueue != NULL);
 	WL_TBM_RETURN_IF_FAIL(cqueue->wl_tbm_queue != NULL);
 
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("      pid:%d\n", cqueue->pid);
+#endif
 	wl_tbm_queue_send_active(cqueue->wl_tbm_queue, usage);
 }
 
@@ -686,6 +738,10 @@ wayland_tbm_server_client_queue_deactivate(struct wayland_tbm_client_queue *cque
 {
 	WL_TBM_RETURN_IF_FAIL(cqueue != NULL);
 	WL_TBM_RETURN_IF_FAIL(cqueue->wl_tbm_queue != NULL);
+
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("    pid:%d\n", cqueue->pid);
+#endif
 
 	wl_tbm_queue_send_deactive(cqueue->wl_tbm_queue);
 }
@@ -780,8 +836,6 @@ _wayland_tbm_server_wl_tbm_queue_send_surface(struct wl_resource *wl_tbm_queue,
 			close(bufs[i]);
 	}
 
-	WL_TBM_S_LOG("Release wl_tbm_queue tbm_surface(%p).\n", surface);
-
 	return 1;
 err:
 	for (i = 0; i < TBM_SURF_PLANE_MAX; i++) {
@@ -809,7 +863,7 @@ wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *c
     /* return if the surface is already exported to the client on the cqueue */
 	tbm_surface_internal_get_user_data(surface, KEY_TBM_BUFFER, &data);
 	if (data != NULL) {
-		WL_TBM_S_LOG("WARNING...surface(%p) is already export\n", surface);
+		//WL_TBM_S_LOG("WARNING...surface(%p) is already export\n", surface);
 		return 0;
 	}
 
@@ -833,6 +887,10 @@ wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *c
 		tbm_surface_internal_unref(surface);
 		return 0;
 	}
+
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE(" pid:%d tbm_surface:%p\n", cqueue->pid, surface);
+#endif
 
 	return 1;
 }
