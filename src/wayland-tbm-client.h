@@ -40,6 +40,9 @@ extern "C" {
 
 struct wayland_tbm_client;
 
+typedef void (*wayland_tbm_client_queue_notify_cb) (tbm_surface_queue_h surface_queue,
+		void *data);
+
 struct wayland_tbm_client *
 wayland_tbm_client_init(struct wl_display *display);
 
@@ -62,6 +65,17 @@ wayland_tbm_client_create_surface_queue(struct wayland_tbm_client *tbm_client,
 					struct wl_surface *surface,
 					int queue_size,
 					int width, int height, tbm_format format);
+
+int wayland_tbm_client_add_reset_queue_cb(struct wayland_tbm_client *tbm_client,
+					tbm_surface_queue_h surface_queue,
+					wayland_tbm_client_queue_notify_cb reset_queue_cb,
+					void *data);
+;
+int wayland_tbm_client_remove_reset_queue_cb(struct wayland_tbm_client *tbm_client,
+					tbm_surface_queue_h surface_queue,
+					wayland_tbm_client_queue_notify_cb reset_queue_cb,
+					void *data);
+
 #ifdef  __cplusplus
 }
 #endif
