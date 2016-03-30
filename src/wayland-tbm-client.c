@@ -49,12 +49,16 @@ struct wayland_tbm_client {
 	struct wl_tbm *wl_tbm;
 
 	tbm_bufmgr bufmgr;
+
+	// TODO: make the queue_info list
+	struct wayland_tbm_surface_queue *queue_info;
 };
 
 struct wayland_tbm_buffer {
 	struct wl_buffer *wl_buffer;
 	tbm_surface_h tbm_surface;
 	uint32_t flags;
+	int allocated;
 
 	struct wl_tbm_queue *wl_tbm_queue;
 	struct wl_list link;
@@ -75,11 +79,23 @@ struct wayland_tbm_surface_queue {
 	struct wl_list attach_bufs;
 
 	tbm_surface_queue_h tbm_queue;
+
+	struct wl_list reset_noti;
 };
+
+typedef struct _wayland_tbm_client_queue_notify wayland_tbm_client_queue_notify;
+
+struct _wayland_tbm_client_queue_notify {
+	wayland_tbm_client_queue_notify_cb cb;
+	void *data;
+	struct wl_list link;
+};
+
 
 static const int key_wl_buffer_imported;
 #define KEY_WL_BUFFER_IMPORTED ((unsigned long)&key_wl_buffer_imported)
 
+#define DEBUG_TRACE
 #ifdef DEBUG_TRACE
 #define WL_TBM_TRACE(fmt, ...)   fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #else
@@ -328,6 +344,12 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client,
 			close(bufs[i]);
 	}
 
+    wl_buffer_set_user_data(wl_buffer, surface);
+
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("        pid:%d wl_buffer:%p tbm_surface:%p\n", getpid(), wl_buffer, surface);
+#endif
+
 	return wl_buffer;
 
 err:
@@ -341,15 +363,19 @@ err:
 
 void
 wayland_tbm_client_destroy_buffer(struct wayland_tbm_client *tbm_client,
-				  struct wl_buffer *buffer)
+				  struct wl_buffer *wl_buffer)
 {
 	WL_TBM_RETURN_IF_FAIL(tbm_client != NULL);
-	WL_TBM_RETURN_IF_FAIL(buffer != NULL);
+	WL_TBM_RETURN_IF_FAIL(wl_buffer != NULL);
 
 	// TODO: valid check if the buffer is from this tbm_client???
 
-	wl_buffer_set_user_data(buffer, NULL);
-	wl_buffer_destroy(buffer);
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("       pid:%d wl_buffer:%p\n", getpid(), wl_buffer);
+#endif
+
+	wl_buffer_set_user_data(wl_buffer, NULL);
+	wl_buffer_destroy(wl_buffer);
 }
 
 void *
@@ -368,8 +394,42 @@ _wayland_tbm_client_get_wl_tbm(struct wayland_tbm_client *tbm_client)
 	return tbm_client->wl_tbm;
 }
 
+static void
+_wayland_tbm_client_queue_destory_attach_bufs(struct wayland_tbm_surface_queue *queue_info)
+{
+	struct wayland_tbm_buffer *buffer, *tmp;
+
+	wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
+#ifdef DEBUG_TRACE
+		WL_TBM_TRACE("pid:%d wl_buffer:%p tbm_surface:%p\n", getpid(), buffer->wl_buffer, buffer->tbm_surface);
+#endif
+
+		if (!buffer->allocated) {
+#ifdef DEBUG_TRACE
+			WL_TBM_TRACE("destroy the wl_buffer:%p\n", buffer->wl_buffer);
+#endif
+			wl_buffer_destroy(buffer->wl_buffer);
+			buffer->wl_buffer = NULL;
+		}
+		tbm_surface_internal_unref(buffer->tbm_surface);
+		wl_list_remove(&buffer->link);
+		free(buffer);
+	}
+
+}
+
+static void
+_wayland_tbm_client_surface_queue_flush(struct wayland_tbm_surface_queue *queue_info)
+{
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("pid:%d\n", getpid());
+#endif
+	_wayland_tbm_client_queue_destory_attach_bufs(queue_info);
+	tbm_surface_queue_flush(queue_info->tbm_queue);
+}
+
 static tbm_surface_h
-__tbm_surface_from_param(tbm_bufmgr bufmgr,
+_wayland_tbm_client_create_surface_from_param(tbm_bufmgr bufmgr,
 			 int is_fd,
 			 int32_t	 width,
 			 int32_t height,
@@ -446,7 +506,6 @@ __tbm_surface_from_param(tbm_bufmgr bufmgr,
 	}
 	tbm_surface = tbm_surface_internal_create_with_bos(&info, bos, numName);
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_surface != NULL, NULL);
-	WL_TBM_TRACE("[IMPORT] :%p\n", tbm_surface);
 
 	if (is_fd) {
 		close(buf0);
@@ -462,62 +521,56 @@ __tbm_surface_from_param(tbm_bufmgr bufmgr,
 }
 
 static tbm_surface_h
-__tbm_surface_alloc_cb(tbm_surface_queue_h surface_queue, void *data)
+__wayland_tbm_client_surface_alloc_cb(tbm_surface_queue_h surface_queue, void *data)
 {
 	struct wayland_tbm_surface_queue *queue_info = data;
-	struct wayland_tbm_buffer *buffer;
-	tbm_surface_h surface;
+	struct wayland_tbm_buffer *buffer, *tmp;
+	tbm_surface_h surface = NULL;
 
 	if (queue_info->is_active) {
-		struct wl_list *link;
-		if (wl_list_empty(&queue_info->attach_bufs))
-			return NULL;
-		link = queue_info->attach_bufs.next;
-		buffer = wl_container_of(link, buffer, link);
-		surface = buffer->tbm_surface;
-		wl_list_remove(link);
-		free(buffer);
-
-		WL_TBM_TRACE("[ALLOC_FB] : %p\n", surface);
+		wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
+			if (!buffer->allocated) {
+				surface = buffer->tbm_surface;
+				/* ref.. pair of __wayland_tbm_client_surface_free_cb */
+				 tbm_surface_internal_ref(surface);
+				buffer->allocated = 1;
+#ifdef DEBUG_TRACE
+				WL_TBM_TRACE("	 pid:%d wl_buffer:%p tbm_surface:%p ACTIVE\n", getpid(), buffer->wl_buffer, buffer->tbm_surface);
+#endif
+				break;
+			}
+		}
+		if (!surface)
+			WL_TBM_C_LOG("Error no available attached buffers\n");
 	} else {
 		int width = tbm_surface_queue_get_width(queue_info->tbm_queue);
 		int height = tbm_surface_queue_get_height(queue_info->tbm_queue);
 		int format = tbm_surface_queue_get_format(queue_info->tbm_queue);
 
+        /* ref.. pair of __wayland_tbm_client_surface_free_cb */
 		surface = tbm_surface_internal_create_with_flags(width,
 							height,
 							format,
 							queue_info->flag);
-		WL_TBM_TRACE("[ALLOC] : %p\n", surface);
+
+#ifdef DEBUG_TRACE
+		WL_TBM_TRACE("   pid:%d tbm_surface:%p DEACTIVE\n", getpid(), surface);
+#endif
 	}
 
 	return surface;
 }
 
 static void
-__tbm_surface_free_cb(tbm_surface_queue_h surface_queue, void *data,
+__wayland_tbm_client_surface_free_cb(tbm_surface_queue_h surface_queue, void *data,
 		      tbm_surface_h surface)
 {
-	WL_TBM_TRACE("[FREE] : %p\n", surface);
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("    pid:%d tbm_surface:%p\n", getpid(), surface);
+#endif
 
-	tbm_surface_destroy(surface);
-}
-
-static void
-__tbm_surface_queue_flush(struct wayland_tbm_surface_queue *queue_info)
-{
-	struct wayland_tbm_buffer *buffer, *tmp;
-
-	wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
-		wl_list_remove(&buffer->link);
-
-		wl_buffer_destroy(buffer->wl_buffer);
-		buffer->wl_buffer = NULL;
-		tbm_surface_destroy(buffer->tbm_surface);
-		free(buffer);
-	}
-
-	tbm_surface_queue_flush(queue_info->tbm_queue);
+    /* unref.. pair of __wayland_tbm_client_surface_alloc_cb */
+	tbm_surface_internal_unref(surface);
 }
 
 static void
@@ -551,21 +604,26 @@ handle_tbm_queue_info(void *data,
 								format,
 								flags);
 
-	if (queue_info->tbm_queue == NULL) {
+	if (!queue_info->tbm_queue) {
 		WL_TBM_C_LOG("failed to create_surface %dx%d format:0x%x flags:%d, num_bufs:%d",
 			     width, height, format, flags, num_buffers);
 	}
 
 	tbm_surface_queue_set_alloc_cb(queue_info->tbm_queue,
-				       __tbm_surface_alloc_cb,
-				       __tbm_surface_free_cb,
+				       __wayland_tbm_client_surface_alloc_cb,
+				       __wayland_tbm_client_surface_free_cb,
 				       queue_info);
+
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("pid:%d\n", getpid());
+#endif
+
 }
 
 static void
 handle_tbm_queue_buffer_attached_with_id(void *data,
 		struct wl_tbm_queue *wl_tbm_queue,
-		struct wl_buffer *id,
+		struct wl_buffer *wl_buffer,
 		int32_t width,
 		int32_t height,
 		uint32_t format,
@@ -592,10 +650,12 @@ handle_tbm_queue_buffer_attached_with_id(void *data,
 	wl_list_init(&buffer->link);
 
 	buffer->wl_tbm_queue = wl_tbm_queue;
-	buffer->wl_buffer = id;
+	buffer->wl_buffer = wl_buffer;
+	buffer->allocated = 0;
+
 	WL_TBM_GOTO_IF_FAIL(buffer->wl_buffer != NULL, fail);
 
-	buffer->tbm_surface = __tbm_surface_from_param(queue_info->bufmgr, 0,
+	buffer->tbm_surface = _wayland_tbm_client_create_surface_from_param(queue_info->bufmgr, 0,
 			      width, height, format,
 			      num_plane,
 			      buf_idx0, offset0, stride0,
@@ -614,6 +674,11 @@ handle_tbm_queue_buffer_attached_with_id(void *data,
 	tbm_surface_internal_set_user_data(buffer->tbm_surface,
 					   KEY_WL_BUFFER_IMPORTED,
 					   buffer->wl_buffer);
+
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("pid:%d wl_buffer:%p tbm_surface:%p\n", getpid(), buffer->wl_buffer, buffer->tbm_surface);
+#endif
+
 	return;
 
 fail:
@@ -628,7 +693,7 @@ fail:
 static void
 handle_tbm_queue_buffer_attached_with_fd(void *data,
 		struct wl_tbm_queue *wl_tbm_queue,
-		struct wl_buffer *id,
+		struct wl_buffer *wl_buffer,
 		int32_t width,
 		int32_t height,
 		uint32_t format,
@@ -655,10 +720,12 @@ handle_tbm_queue_buffer_attached_with_fd(void *data,
 	wl_list_init(&buffer->link);
 
 	buffer->wl_tbm_queue = wl_tbm_queue;
-	buffer->wl_buffer = id;
+	buffer->wl_buffer = wl_buffer;
+	buffer->allocated = 0;
+
 	WL_TBM_GOTO_IF_FAIL(buffer->wl_buffer != NULL, fail);
 
-	buffer->tbm_surface = __tbm_surface_from_param(queue_info->bufmgr, 1,
+	buffer->tbm_surface = _wayland_tbm_client_create_surface_from_param(queue_info->bufmgr, 1,
 			      width, height, format,
 			      num_plane,
 			      buf_idx0, offset0, stride0,
@@ -677,6 +744,11 @@ handle_tbm_queue_buffer_attached_with_fd(void *data,
 	tbm_surface_internal_set_user_data(buffer->tbm_surface,
 					   KEY_WL_BUFFER_IMPORTED,
 					   buffer->wl_buffer);
+
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("pid:%d wl_buffer:%p tbm_surface:%p\n", getpid(), buffer->wl_buffer, buffer->tbm_surface);
+#endif
+
 	return;
 fail:
 	if (buffer->wl_buffer)
@@ -693,12 +765,26 @@ handle_tbm_queue_active(void *data,
 			uint32_t usage)
 {
 	struct wayland_tbm_surface_queue *queue_info = data;
+	wayland_tbm_client_queue_notify *item, *tmp = NULL;
+
+	if (queue_info->is_active) {
+		WL_TBM_C_LOG("warning: queue_info is already activated\n");
+		return;
+	}
+#ifdef DEBUG_TRACE
+		WL_TBM_TRACE("					  pid:%d\n", getpid());
+#endif
 
 	queue_info->is_active = 1;
 	queue_info->usage = usage;
 
-	WL_TBM_TRACE("[ACTIVE] : \n");
-	__tbm_surface_queue_flush(queue_info);
+	/* call the reset_noti */
+	wl_list_for_each_safe(item, tmp, &queue_info->reset_noti, link) {
+		item->cb(queue_info->tbm_queue, item->data);
+	}
+
+	/* flush the allocated surfaces at the client */
+	tbm_surface_queue_flush(queue_info->tbm_queue);
 }
 
 static void
@@ -706,12 +792,26 @@ handle_tbm_queue_deactive(void *data,
 			  struct wl_tbm_queue *wl_tbm_queue)
 {
 	struct wayland_tbm_surface_queue *queue_info = data;
+	wayland_tbm_client_queue_notify *item, *tmp = NULL;
 
-	if (queue_info->is_active == 0)
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("			  pid:%d\n", getpid());
+#endif
+
+	if (!queue_info->is_active) {
+		WL_TBM_C_LOG("warning: queue_info is already deactivated\n");
 		return;
+	}
 
 	queue_info->is_active = 0;
-	__tbm_surface_queue_flush(queue_info);
+
+	/* call the reset_noti */
+	wl_list_for_each_safe(item, tmp, &queue_info->reset_noti, link) {
+		item->cb(queue_info->tbm_queue, item->data);
+	}
+
+	/* flush the attached surfaces */
+	_wayland_tbm_client_surface_queue_flush(queue_info);
 }
 
 static void
@@ -720,7 +820,17 @@ handle_tbm_queue_flush(void *data,
 {
 	struct wayland_tbm_surface_queue *queue_info = data;
 
-	__tbm_surface_queue_flush(queue_info);
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("pid:%d\n", getpid());
+#endif
+
+	if (queue_info->is_active) {
+		WL_TBM_C_LOG("warning: Cannot flush the tbm_surface_queueu. The queue is activate.\n");
+		return;
+	}
+
+	/* flush the allocated surfaces at the client */
+	tbm_surface_queue_flush(queue_info->tbm_queue);
 }
 
 
@@ -738,21 +848,23 @@ handle_tbm_surface_queue_destroy_notify(tbm_surface_queue_h surface_queue,
 		void *data)
 {
 	struct wayland_tbm_surface_queue *queue_info = data;
-	struct wayland_tbm_buffer *buffer, *tmp;
-	WL_TBM_TRACE("\n");
+	wayland_tbm_client_queue_notify *item, *tmp;
+
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("pid:%d\n", getpid());
+#endif
+
+	/* remove the reset notis in the queue_info */
+	wl_list_for_each_safe(item, tmp, &queue_info->reset_noti, link) {
+		wl_list_remove(&item->link);
+		free(item);
+	}
+
+	/* remove the attach_bufs int the queue_info */
+	_wayland_tbm_client_queue_destory_attach_bufs(queue_info);
 
 	if (queue_info->wl_tbm_queue)
 		wl_tbm_queue_destroy(queue_info->wl_tbm_queue);
-
-	wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
-		if (buffer->wl_buffer) {
-			wl_buffer_destroy(buffer->wl_buffer);
-			buffer->wl_buffer = NULL;
-		}
-
-		tbm_surface_destroy(buffer->tbm_surface);
-		free(buffer);
-	}
 
 	free(queue_info);
 }
@@ -766,6 +878,10 @@ wayland_tbm_client_create_surface_queue(struct wayland_tbm_client *tbm_client,
 	struct wayland_tbm_surface_queue *queue_info;
 	struct wl_tbm_queue *queue;
 
+#ifdef DEBUG_TRACE
+		WL_TBM_TRACE(" pid:%d\n", getpid());
+#endif
+
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
 	WL_TBM_RETURN_VAL_IF_FAIL(surface != NULL, NULL);
 
@@ -773,6 +889,7 @@ wayland_tbm_client_create_surface_queue(struct wayland_tbm_client *tbm_client,
 	WL_TBM_RETURN_VAL_IF_FAIL(queue_info != NULL, NULL);
 	queue_info->bufmgr = tbm_client->bufmgr;
 	wl_list_init(&queue_info->attach_bufs);
+	wl_list_init(&queue_info->reset_noti);
 
 	queue = wl_tbm_create_surface_queue(tbm_client->wl_tbm, surface);
 	WL_TBM_GOTO_IF_FAIL(queue != NULL, fail);
@@ -793,8 +910,8 @@ wayland_tbm_client_create_surface_queue(struct wayland_tbm_client *tbm_client,
 		WL_TBM_GOTO_IF_FAIL(queue_info->tbm_queue != NULL, fail);
 
 		tbm_surface_queue_set_alloc_cb(queue_info->tbm_queue,
-					       __tbm_surface_alloc_cb,
-					       __tbm_surface_free_cb,
+					       __wayland_tbm_client_surface_alloc_cb,
+					       __wayland_tbm_client_surface_free_cb,
 					       queue_info);
 
 		tbm_surface_queue_add_destroy_cb(queue_info->tbm_queue,
@@ -806,6 +923,9 @@ wayland_tbm_client_create_surface_queue(struct wayland_tbm_client *tbm_client,
 			width, height, format, queue_size);
 	}
 
+	// TODO: add queue_info list
+	tbm_client->queue_info = queue_info;
+
 	return queue_info->tbm_queue;
 fail:
 	if (queue_info) {
@@ -815,5 +935,71 @@ fail:
 		free(queue_info);
 	}
 	return NULL;
+}
+
+int wayland_tbm_client_add_reset_queue_cb(struct wayland_tbm_client *tbm_client,
+					tbm_surface_queue_h surface_queue,
+					wayland_tbm_client_queue_notify_cb reset_queue_cb,
+					void *data)
+{
+	struct wayland_tbm_surface_queue *queue_info = NULL;
+	wayland_tbm_client_queue_notify *item = NULL;
+
+	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, 0);
+	WL_TBM_RETURN_VAL_IF_FAIL(surface_queue != NULL, 0);
+	WL_TBM_RETURN_VAL_IF_FAIL(reset_queue_cb != NULL, 0);
+
+	// TODO: verify the surface_queue in the tbm_client
+	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client->queue_info != NULL, 0);
+	queue_info = tbm_client->queue_info;
+	if (surface_queue != queue_info->tbm_queue) {
+		WL_TBM_C_LOG("surface_queue != queue_info->tbm_queue\n");
+		return 0;
+	}
+
+	item =  calloc(1, sizeof(struct _wayland_tbm_client_queue_notify));
+	WL_TBM_RETURN_VAL_IF_FAIL(item != NULL,0);
+
+	item->cb = reset_queue_cb;
+	item->data = data;
+
+	wl_list_insert(&queue_info->reset_noti, &item->link);
+
+	return 1;
+}
+
+
+int wayland_tbm_client_remove_reset_queue_cb(struct wayland_tbm_client *tbm_client,
+					tbm_surface_queue_h surface_queue,
+					wayland_tbm_client_queue_notify_cb reset_queue_cb,
+					void *data)
+{
+	struct wayland_tbm_surface_queue *queue_info = NULL;
+	wayland_tbm_client_queue_notify *item, *tmp = NULL;
+
+	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, 0);
+	WL_TBM_RETURN_VAL_IF_FAIL(surface_queue != NULL, 0);
+	WL_TBM_RETURN_VAL_IF_FAIL(reset_queue_cb != NULL, 0);
+
+	// TODO: verify the surface_queue in the tbm_client
+	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client->queue_info != NULL, 0);
+	queue_info = tbm_client->queue_info;
+	if (surface_queue != queue_info->tbm_queue) {
+		WL_TBM_C_LOG("surface_queue != queue_info->tbm_queue\n");
+		return 0;
+	}
+
+	/* unref the tbm surfaces attached */
+	wl_list_for_each_safe(item, tmp, &queue_info->reset_noti, link) {
+		if (item->cb == reset_queue_cb && item->data == data) {
+			wl_list_remove(&item->link);
+			free(item);
+			return 1;
+		}
+	}
+
+	WL_TBM_C_LOG("Warning: cannot fine the reset notify in the queue.\n");
+
+	return 0;
 }
 
