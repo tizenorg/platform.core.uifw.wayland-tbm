@@ -875,7 +875,7 @@ err:
 	return 0;
 }
 
-int
+struct wl_resource *
 wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *cqueue,
 			tbm_surface_h surface, uint32_t flags,
 			wayland_tbm_server_surface_destroy_cb destroy_cb, void *user_data)
@@ -884,10 +884,9 @@ wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *c
 	struct wayland_tbm_buffer *tbm_buffer = NULL;
 	struct wl_client *client = NULL;
 
-	WL_TBM_RETURN_VAL_IF_FAIL(cqueue != NULL, 0);
-	WL_TBM_RETURN_VAL_IF_FAIL(cqueue->wl_tbm_queue != NULL, 0);
-	WL_TBM_RETURN_VAL_IF_FAIL(surface != NULL, 0);
-
+	WL_TBM_RETURN_VAL_IF_FAIL(cqueue != NULL, NULL);
+	WL_TBM_RETURN_VAL_IF_FAIL(cqueue->wl_tbm_queue != NULL, NULL);
+	WL_TBM_RETURN_VAL_IF_FAIL(surface != NULL, NULL);
 
 	wl_tbm = cqueue->wl_tbm;
 	client = wl_resource_get_client(cqueue->wl_tbm_queue);
@@ -896,7 +895,7 @@ wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *c
 	tbm_buffer = _wayland_tbm_server_tbm_buffer_create(wl_tbm, client, surface, 0, flags);
 	if (tbm_buffer == NULL) {
 		tbm_surface_internal_unref(surface);
-		return 0;
+		return NULL;
 	}
 	tbm_buffer->destroy_cb = destroy_cb;
 	tbm_buffer->user_data = user_data;
@@ -910,9 +909,9 @@ wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *c
 		WL_TBM_S_LOG("Failed to send the surface to the wl_tbm_queue\n");
 		_wayland_tbm_server_tbm_buffer_destroy(tbm_buffer);
 		tbm_surface_internal_unref(surface);
-		return 0;
+		return NULL;
 	}
 
-	return 1;
+	return tbm_buffer->wl_buffer;
 }
 
