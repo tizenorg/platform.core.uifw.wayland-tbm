@@ -219,18 +219,6 @@ _wayland_tbm_server_surface_queue_destroy(struct wl_resource *wl_tbm_queue)
 #ifdef DEBUG_TRACE
 		WL_TBM_TRACE("destory queue. pid:%d\n", cqueue->pid);
 #endif
-		if (!wl_list_empty(&cqueue->tbm_buffer_list)) {
-			wl_list_for_each_safe(tbm_buffer, tmp_tbm_buffer, &cqueue->tbm_buffer_list, link) {
-				wl_list_remove(&tbm_buffer->link);
-				if (tbm_buffer->destroy_cb)
-					tbm_buffer->destroy_cb(tbm_buffer->surface, tbm_buffer->user_data);
-				tbm_surface_internal_delete_user_data(tbm_buffer->surface, KEY_TBM_BUFFER);
-				tbm_surface_internal_unref(tbm_buffer->surface);
-				free(tbm_buffer);
-				tbm_buffer = NULL;
-			}
-		}
-
 		wl_list_remove(&cqueue->link);
 		free(cqueue);
 
