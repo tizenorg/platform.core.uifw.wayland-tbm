@@ -888,20 +888,6 @@ wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *c
 	WL_TBM_RETURN_VAL_IF_FAIL(cqueue->wl_tbm_queue != NULL, 0);
 	WL_TBM_RETURN_VAL_IF_FAIL(surface != NULL, 0);
 
-#if 0
-	void *data = NULL;
-    /* return if the surface is already exported to the client on the cqueue */
-	if (tbm_surface_internal_get_user_data(surface, KEY_TBM_BUFFER, &data))	{
-		if (data != NULL) {
-			tbm_buffer = (struct wayland_tbm_buffer *)data;
-			tbm_surface_internal_add_user_data(surface, tbm_buffer->wl_buffer, NULL);
-			tbm_surface_internal_set_user_data(surface, tbm_buffer->wl_buffer, (void *)data);
-			data = NULL;
-			tbm_buffer = NULL;
-			//return 0;
-		}
-	}
-#endif
 
 	wl_tbm = cqueue->wl_tbm;
 	client = wl_resource_get_client(cqueue->wl_tbm_queue);
