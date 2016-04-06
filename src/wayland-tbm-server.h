@@ -74,7 +74,7 @@ wayland_tbm_server_client_queue_activate(struct wayland_tbm_client_queue *client
 void
 wayland_tbm_server_client_queue_deactivate(struct wayland_tbm_client_queue *client_queue);
 
-int
+struct wl_resource *
 wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *client_queue,
 			tbm_surface_h surface, uint32_t flags, wayland_tbm_server_surface_destroy_cb destroy_cb,
 			void *user_data);
