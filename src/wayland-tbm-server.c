@@ -213,7 +213,6 @@ static void
 _wayland_tbm_server_surface_queue_destroy(struct wl_resource *wl_tbm_queue)
 {
 	struct wayland_tbm_client_queue *cqueue = wl_resource_get_user_data(wl_tbm_queue);
-	struct wayland_tbm_buffer *tbm_buffer = NULL, *tmp_tbm_buffer = NULL;
 
 	if (cqueue) {
 #ifdef DEBUG_TRACE
