@@ -52,7 +52,9 @@ Development header files for use with Wayland protocol
 cp %{SOURCE1001} .
 
 %build
-%reconfigure
+%reconfigure CFLAGS="${CFLAGS} -Wall -Werror" \
+             LDFLAGS="${LDFLAGS} -Wl,--hash-style=both -Wl,--as-needed"
+
 make %{?_smp_mflags}
 
 %install
