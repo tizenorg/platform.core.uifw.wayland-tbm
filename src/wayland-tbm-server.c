@@ -144,21 +144,27 @@ _wayland_tbm_server_tbm_buffer_destroy(struct wayland_tbm_buffer *tbm_buffer)
 
 	struct wayland_tbm_buffer *tbm_buffer2 = NULL, *tmp_tbm_buffer = NULL;
 	struct wayland_tbm_client_queue *cqueue = tbm_buffer->cqueue;
-	WL_TBM_RETURN_IF_FAIL(cqueue != NULL);
 
-	if (!wl_list_empty(&cqueue->tbm_buffer_list)) {
-		wl_list_for_each_safe(tbm_buffer2, tmp_tbm_buffer, &cqueue->tbm_buffer_list, link) {
-            if (tbm_buffer2 == tbm_buffer) {
-				wl_list_remove(&tbm_buffer2->link);
-				if (tbm_buffer->destroy_cb)
-					tbm_buffer->destroy_cb(tbm_buffer2->surface, tbm_buffer2->user_data);
-				tbm_surface_internal_delete_user_data(tbm_buffer2->surface, KEY_TBM_BUFFER);
-				tbm_surface_internal_unref(tbm_buffer2->surface);
-				free(tbm_buffer2);
-				tbm_buffer2 = NULL;
-				break;
-            }
+	if (cqueue) {
+		if (!wl_list_empty(&cqueue->tbm_buffer_list)) {
+			wl_list_for_each_safe(tbm_buffer2, tmp_tbm_buffer, &cqueue->tbm_buffer_list, link) {
+	            if (tbm_buffer2 == tbm_buffer) {
+					wl_list_remove(&tbm_buffer2->link);
+					if (tbm_buffer->destroy_cb)
+						tbm_buffer->destroy_cb(tbm_buffer2->surface, tbm_buffer2->user_data);
+					tbm_surface_internal_delete_user_data(tbm_buffer2->surface, KEY_TBM_BUFFER);
+					tbm_surface_internal_unref(tbm_buffer2->surface);
+					free(tbm_buffer2);
+					tbm_buffer2 = NULL;
+					break;
+	            }
+			}
 		}
+	} else {
+		tbm_surface_internal_delete_user_data(tbm_buffer->surface, KEY_TBM_BUFFER);
+		tbm_surface_internal_unref(tbm_buffer->surface);
+		free(tbm_buffer);
+		tbm_buffer = NULL;
 	}
 }
 
