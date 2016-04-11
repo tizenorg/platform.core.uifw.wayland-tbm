@@ -81,9 +81,6 @@ struct wayland_tbm_surface_queue {
 	tbm_surface_queue_h tbm_queue;
 };
 
-static const int key_wl_buffer_imported;
-#define KEY_WL_BUFFER_IMPORTED ((unsigned long)&key_wl_buffer_imported)
-
 #define DEBUG_TRACE
 #ifdef DEBUG_TRACE
 #define WL_TBM_TRACE(fmt, ...)   fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
@@ -238,18 +235,16 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client,
 	int is_fd = -1;
 	struct wl_buffer *wl_buffer = NULL;
 	int i;
-
 	uint32_t flags = 0;
+	struct wayland_tbm_buffer *buffer, *tmp;
+	struct wayland_tbm_surface_queue *queue_info = tbm_client->queue_info;
 
-	if (tbm_surface_internal_get_user_data(surface,
-					   KEY_WL_BUFFER_IMPORTED,
-					   (void **)&wl_buffer)) {
-		if (wl_buffer) {
-			tbm_surface_internal_set_user_data(surface, KEY_WL_BUFFER_IMPORTED, NULL);
-			return wl_buffer;
-		} else {
-			WL_TBM_LOG("already created wl_buffer from surface: %p\n", surface);
-			return NULL;
+	/* if the surface is the attached surface from display server,
+	 * return the wl_buffer of the attached surface
+	 */
+	wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
+		if (buffer->tbm_surface == surface) {
+			return buffer->wl_buffer;
 		}
 	}
 
@@ -658,12 +653,6 @@ handle_tbm_queue_buffer_attached_with_id(void *data,
 
 	wl_list_insert(&queue_info->attach_bufs, &buffer->link);
 
-	tbm_surface_internal_add_user_data(buffer->tbm_surface,
-					   KEY_WL_BUFFER_IMPORTED, NULL);
-	tbm_surface_internal_set_user_data(buffer->tbm_surface,
-					   KEY_WL_BUFFER_IMPORTED,
-					   buffer->wl_buffer);
-
 #ifdef DEBUG_TRACE
 	WL_TBM_TRACE("pid:%d wl_buffer:%p tbm_surface:%p\n", getpid(), buffer->wl_buffer, buffer->tbm_surface);
 #endif
@@ -727,12 +716,6 @@ handle_tbm_queue_buffer_attached_with_fd(void *data,
 	buffer->flags = flags;
 
 	wl_list_insert(&queue_info->attach_bufs, &buffer->link);
-
-	tbm_surface_internal_add_user_data(buffer->tbm_surface,
-					   KEY_WL_BUFFER_IMPORTED, NULL);
-	tbm_surface_internal_set_user_data(buffer->tbm_surface,
-					   KEY_WL_BUFFER_IMPORTED,
-					   buffer->wl_buffer);
 
 #ifdef DEBUG_TRACE
 	WL_TBM_TRACE("pid:%d wl_buffer:%p tbm_surface:%p\n", getpid(), buffer->wl_buffer, buffer->tbm_surface);
