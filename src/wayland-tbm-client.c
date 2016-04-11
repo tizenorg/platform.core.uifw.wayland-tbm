@@ -906,3 +906,14 @@ fail:
 	return NULL;
 }
 
+struct wl_tbm_queue *
+wayland_tbm_client_get_wl_tbm_queue(struct wayland_tbm_client *tbm_client, struct wl_surface *surface)
+{
+	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
+	WL_TBM_RETURN_VAL_IF_FAIL(surface != NULL, NULL);
+	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client->queue_info != NULL, NULL);
+	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client->queue_info->wl_tbm_queue != NULL, NULL);
+
+	return tbm_client->queue_info->wl_tbm_queue;
+}
+
