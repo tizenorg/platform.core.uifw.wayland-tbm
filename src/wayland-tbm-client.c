@@ -237,14 +237,17 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client,
 	int i;
 	uint32_t flags = 0;
 	struct wayland_tbm_buffer *buffer, *tmp;
-	struct wayland_tbm_surface_queue *queue_info = tbm_client->queue_info;
+	struct wayland_tbm_surface_queue *queue_info = NULL;
 
-	/* if the surface is the attached surface from display server,
-	 * return the wl_buffer of the attached surface
-	 */
-	wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
-		if (buffer->tbm_surface == surface) {
-			return buffer->wl_buffer;
+	if (tbm_client->queue_info) {
+		queue_info = tbm_client->queue_info;
+		/* if the surface is the attached surface from display server,
+		 * return the wl_buffer of the attached surface
+		 */
+		wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
+			if (buffer->tbm_surface == surface) {
+				return buffer->wl_buffer;
+			}
 		}
 	}
 
