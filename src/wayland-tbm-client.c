@@ -81,7 +81,7 @@ struct wayland_tbm_surface_queue {
 	tbm_surface_queue_h tbm_queue;
 };
 
-#define DEBUG_TRACE
+//#define DEBUG_TRACE
 #ifdef DEBUG_TRACE
 #define WL_TBM_TRACE(fmt, ...)   fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #else

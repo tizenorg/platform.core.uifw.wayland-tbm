@@ -46,7 +46,7 @@ DEALINGS IN THE SOFTWARE.
 #include "wayland-tbm-int.h"
 
 //#define WL_TBM_SERVER_DEBUG
-#define DEBUG_TRACE
+//#define DEBUG_TRACE
 #ifdef DEBUG_TRACE
 #define WL_TBM_TRACE(fmt, ...)   fprintf (stderr, "[WL_TBM_S(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #else
