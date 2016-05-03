@@ -51,9 +51,6 @@ struct wayland_tbm_client {
 	tbm_bufmgr bufmgr;
 
 	struct wl_list queue_info_list;
-
-	// TODO: make the queue_info list
-	struct wayland_tbm_surface_queue *queue_info;
 };
 
 struct wayland_tbm_buffer {
@@ -244,16 +241,17 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client,
 	int i;
 	uint32_t flags = 0;
 	struct wayland_tbm_buffer *buffer, *tmp;
-	struct wayland_tbm_surface_queue *queue_info = NULL;
+	struct wayland_tbm_surface_queue *queue_info = NULL, *tmp_info = NULL;
 
-	if (tbm_client->queue_info) {
-		queue_info = tbm_client->queue_info;
-		/* if the surface is the attached surface from display server,
-		 * return the wl_buffer of the attached surface
-		 */
-		wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
-			if (buffer->tbm_surface == surface) {
-				return buffer->wl_buffer;
+	/* if the surface is the attached surface from display server,
+	* return the wl_buffer of the attached surface
+	*/
+	if (!wl_list_empty(&tbm_client->queue_info_list)) {
+		wl_list_for_each_safe(queue_info, tmp_info, &tbm_client->queue_info_list, link) {
+			wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
+				if (buffer->tbm_surface == surface) {
+					return buffer->wl_buffer;
+				}
 			}
 		}
 	}
@@ -933,11 +931,15 @@ fail:
 struct wl_tbm_queue *
 wayland_tbm_client_get_wl_tbm_queue(struct wayland_tbm_client *tbm_client, struct wl_surface *surface)
 {
+	struct wayland_tbm_surface_queue *queue_info = NULL;
+
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
 	WL_TBM_RETURN_VAL_IF_FAIL(surface != NULL, NULL);
-	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client->queue_info != NULL, NULL);
-	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client->queue_info->wl_tbm_queue != NULL, NULL);
+	
+	queue_info = _wayland_tbm_client_find_queue_info_wl_surface(tbm_client, surface);
+	WL_TBM_RETURN_VAL_IF_FAIL(queue_info != NULL, NULL);
+	WL_TBM_RETURN_VAL_IF_FAIL(queue_info->wl_tbm_queue != NULL, NULL);
 
-	return tbm_client->queue_info->wl_tbm_queue;
+	return queue_info->wl_tbm_queue;
 }
 
