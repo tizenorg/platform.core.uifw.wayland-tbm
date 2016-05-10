@@ -767,6 +767,18 @@ wayland_tbm_server_client_queue_deactivate(struct wayland_tbm_client_queue *cque
 	wl_tbm_queue_send_deactive(cqueue->wl_tbm_queue);
 }
 
+void
+wayland_tbm_server_client_queue_flush(struct wayland_tbm_client_queue *cqueue)
+{
+	WL_TBM_RETURN_IF_FAIL(cqueue != NULL);
+	WL_TBM_RETURN_IF_FAIL(cqueue->wl_tbm_queue != NULL);
+
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("	  pid:%d\n", cqueue->pid);
+#endif
+
+	wl_tbm_queue_send_flush(cqueue->wl_tbm_queue);
+}
 
 int
 _wayland_tbm_server_wl_tbm_queue_send_surface(struct wayland_tbm_client_queue *cqueue,

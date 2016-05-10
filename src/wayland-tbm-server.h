@@ -79,6 +79,9 @@ wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *c
 			tbm_surface_h surface, uint32_t flags, wayland_tbm_server_surface_destroy_cb destroy_cb,
 			void *user_data);
 
+void
+wayland_tbm_server_client_queue_flush(struct wayland_tbm_client_queue *cqueue);
+
 #ifdef  __cplusplus
 }
 #endif
