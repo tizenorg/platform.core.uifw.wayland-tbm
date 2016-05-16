@@ -646,6 +646,8 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name,
 {
 	struct wayland_tbm_server *tbm_srv;
 
+	_wayland_tbm_check_dlog_enable();
+
 	tbm_srv = calloc(1, sizeof(struct wayland_tbm_server));
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_srv != NULL, NULL);
 

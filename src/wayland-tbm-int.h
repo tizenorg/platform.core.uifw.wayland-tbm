@@ -36,27 +36,65 @@ extern "C" {
 
 #include "wayland-tbm-client.h"
 
-#define WL_TBM_DEBUG(fmt, ...)   fprintf (stderr, "[WL_TBM:DEBUG(%d)] " fmt, getpid(), ##__VA_ARGS__)
+#ifdef HAVE_DLOG
+#include <dlog.h>
+
+extern int bDlog;
+
+#ifdef LOG_TAG
+#undef LOG_TAG
+#endif
+
+#define LOG_TAG "WL_TBM"
+
+#define WL_TBM_C_LOG(fmt, ...) {\
+    if (bDlog) {\
+        LOGE ("[WL_TBM_C] " fmt, ##__VA_ARGS__);\
+    }\
+    else {\
+        fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__);\
+    }\
+}
+#define WL_TBM_S_LOG(fmt, ...) {\
+    if (bDlog) {\
+        LOGE ("[WL_TBM_S] " fmt, ##__VA_ARGS__);\
+    }\
+    else{\
+        fprintf (stderr, "[WL_TBM_S(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__);\
+    }\
+}
+#define WL_TBM_LOG(fmt, ...) {\
+    if (bDlog) {\
+        LOGE ("[WL_TBM] " fmt, ##__VA_ARGS__);\
+    }\
+    else {\
+        fprintf (stderr, "[WL_TBM(%d)] " fmt, getpid(), ##__VA_ARGS__);\
+    }\
+}
+#else
 #define WL_TBM_C_LOG(fmt, ...)   fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #define WL_TBM_S_LOG(fmt, ...)   fprintf (stderr, "[WL_TBM_S(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #define WL_TBM_LOG(fmt, ...)     fprintf (stderr, "[WL_TBM(%d)] " fmt, getpid(), ##__VA_ARGS__)
+#endif /* ENABLE_DLOG */
+
+#define WL_TBM_DEBUG(fmt, ...)   fprintf (stderr, "[WL_TBM:DEBUG(%d)] " fmt, getpid(), ##__VA_ARGS__)
 
 /* check condition */
 #define WL_TBM_RETURN_IF_FAIL(cond) {\
     if (!(cond)) {\
-        WL_TBM_LOG ("[%s] : '%s' failed.\n", __FUNCTION__, #cond);\
+        WL_TBM_LOG ("'%s' failed.\n", #cond);\
         return;\
     }\
 }
 #define WL_TBM_RETURN_VAL_IF_FAIL(cond, val) {\
     if (!(cond)) {\
-        WL_TBM_LOG ("[%s] : '%s' failed.\n", __FUNCTION__, #cond);\
+        WL_TBM_LOG ("'%s' failed.\n", #cond);\
         return val;\
     }\
 }
 #define WL_TBM_GOTO_IF_FAIL(cond, dst) {\
     if (!(cond)) {\
-        WL_TBM_LOG ("[%s] : '%s' failed.\n", __FUNCTION__, #cond);\
+        WL_TBM_LOG ("'%s' failed.\n", #cond);\
         goto dst;\
     }\
 }
@@ -92,6 +130,9 @@ _wayland_tbm_util_get_appname_brief(char *brief);
 
 void
 _wayland_tbm_util_get_appname_from_pid(long pid, char *str);
+
+void
+_wayland_tbm_check_dlog_enable(void);
 
 #ifdef  __cplusplus
 }
