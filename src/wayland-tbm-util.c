@@ -30,7 +30,13 @@ DEALINGS IN THE SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include "wayland-tbm-int.h"
+
+#ifdef HAVE_DLOG
+int bDlog;
+#endif
 
 void
 _wayland_tbm_util_get_appname_brief(char *brief)
@@ -82,5 +88,22 @@ _wayland_tbm_util_get_appname_from_pid(long pid, char *str)
 		cmdline[len] = 0;
 
 	snprintf(str, sizeof(cmdline), "%s", cmdline);
+}
+
+void
+_wayland_tbm_check_dlog_enable(void)
+{
+#ifdef HAVE_DLOG
+	char *env;
+
+	env = getenv("WL_TBM_DLOG");
+	if (env) {
+		bDlog = atoi(env);
+		WL_TBM_LOG("WL_TBM_DLOG=%s\n", env);
+	} else {
+		bDlog = 0;
+	}
+#endif
+    return;
 }
 

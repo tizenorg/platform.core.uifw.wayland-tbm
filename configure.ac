@@ -15,7 +15,7 @@ if test x$wayland_scanner = x; then
       AC_MSG_ERROR([wayland-scanner is needed to compile wayland-tbm])
 fi
 
-PKG_CHECK_MODULES([WL_TBM_COMMON], [libtbm capi-base-common])
+PKG_CHECK_MODULES([WL_TBM_COMMON], [libtbm capi-base-common dlog])
 PKG_CHECK_MODULES([WL_TBM_CLIENT], [wayland-client])
 PKG_CHECK_MODULES([WL_TBM_SERVER], [wayland-server])
 PKG_CHECK_MODULES( WAYLAND_SCANNER, wayland-scanner)

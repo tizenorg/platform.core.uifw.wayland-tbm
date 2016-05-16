@@ -160,6 +160,8 @@ wayland_tbm_client_init(struct wl_display *display)
 	struct wayland_tbm_client *tbm_client = NULL;
 	struct wl_registry *wl_registry;
 
+	_wayland_tbm_check_dlog_enable();
+
 	tbm_client = calloc(1, sizeof(struct wayland_tbm_client));
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
 

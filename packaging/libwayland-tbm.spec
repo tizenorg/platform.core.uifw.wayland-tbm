@@ -14,6 +14,7 @@ BuildRequires:  pkgconfig
 BuildRequires:  pkgconfig(wayland-server)
 BuildRequires:  pkgconfig(wayland-client)
 BuildRequires:  pkgconfig(libtbm)
+BuildRequires:  pkgconfig(dlog)
 
 %description
 Wayland TBM Protocol for TIZEN
