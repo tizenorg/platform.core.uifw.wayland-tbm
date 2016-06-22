@@ -58,6 +58,7 @@ struct wayland_tbm_buffer {
 	tbm_surface_h tbm_surface;
 	uint32_t flags;
 	int allocated;
+	int reuse;
 
 	struct wl_tbm_queue *wl_tbm_queue;
 	struct wl_list link;
@@ -398,7 +399,7 @@ _wayland_tbm_client_queue_destory_attach_bufs(struct wayland_tbm_surface_queue *
 		WL_TBM_TRACE("pid:%d wl_buffer:%p tbm_surface:%p\n", getpid(), buffer->wl_buffer, buffer->tbm_surface);
 #endif
 
-		if (!buffer->allocated) {
+		if (!buffer->allocated && !buffer->reuse) {
 #ifdef DEBUG_TRACE
 			WL_TBM_TRACE("destroy the wl_buffer:%p\n", buffer->wl_buffer);
 #endif
@@ -526,16 +527,19 @@ __wayland_tbm_client_surface_alloc_cb(tbm_surface_queue_h surface_queue, void *d
 			if (!buffer->allocated) {
 				surface = buffer->tbm_surface;
 				/* ref.. pair of __wayland_tbm_client_surface_free_cb */
-				 tbm_surface_internal_ref(surface);
+				tbm_surface_internal_ref(surface);
 				buffer->allocated = 1;
+
 #ifdef DEBUG_TRACE
 				WL_TBM_TRACE("	 pid:%d wl_buffer:%p tbm_surface:%p ACTIVE\n", getpid(), buffer->wl_buffer, buffer->tbm_surface);
 #endif
 				break;
 			}
 		}
+
 		if (!surface)
 			WL_TBM_C_LOG("Error no available attached buffers\n");
+
 	} else {
 		int width = tbm_surface_queue_get_width(queue_info->tbm_queue);
 		int height = tbm_surface_queue_get_height(queue_info->tbm_queue);
@@ -562,8 +566,20 @@ __wayland_tbm_client_surface_free_cb(tbm_surface_queue_h surface_queue, void *da
 #ifdef DEBUG_TRACE
 	WL_TBM_TRACE("    pid:%d tbm_surface:%p\n", getpid(), surface);
 #endif
+	struct wayland_tbm_surface_queue *queue_info = data;
+	struct wayland_tbm_buffer *buffer, *tmp;
 
     /* unref.. pair of __wayland_tbm_client_surface_alloc_cb */
+
+	wl_list_for_each_safe(buffer, tmp, &queue_info->attach_bufs, link) {
+		if (buffer->tbm_surface == surface) {
+			if (buffer->allocated) {
+				buffer->allocated = 0;
+				buffer->reuse = 1;
+			}
+		}
+	}
+
 	tbm_surface_internal_unref(surface);
 }
 
@@ -840,7 +856,7 @@ handle_tbm_surface_queue_destroy_notify(tbm_surface_queue_h surface_queue,
 #ifdef DEBUG_TRACE
 	WL_TBM_TRACE(" pid:%d\n", getpid());
 #endif
-;
+
 	/* remove the attach_bufs int the queue_info */
 	_wayland_tbm_client_queue_destory_attach_bufs(queue_info);
 
