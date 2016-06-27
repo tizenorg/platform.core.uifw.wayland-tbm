@@ -34,6 +34,7 @@ DEALINGS IN THE SOFTWARE.
 extern "C" {
 #endif
 
+#include <tbm_bufmgr.h>
 #include "wayland-tbm-client.h"
 
 #define HAVE_DLOG
@@ -117,6 +118,12 @@ typedef enum {
 } WL_TBM_MONITOR_TRACE_COMMAND;
 
 typedef enum {
+	WL_TBM_MONITOR_TRACE_STATUS_UNREGISTERED,
+	WL_TBM_MONITOR_TRACE_STATUS_OFF,
+	WL_TBM_MONITOR_TRACE_STATUS_ON,
+} WL_TBM_MONITOR_TRACE_STATUS;
+
+typedef enum {
 	WL_TBM_MONITOR_TARGET_CLIENT,
 	WL_TBM_MONITOR_TARGET_SERVER,
 	WL_TBM_MONITOR_TARGET_ALL,
@@ -134,6 +141,12 @@ _wayland_tbm_util_get_appname_from_pid(long pid, char *str);
 
 void
 _wayland_tbm_check_dlog_enable(void);
+
+void
+_change_trace_status(WL_TBM_MONITOR_TRACE_STATUS * curr_status, WL_TBM_MONITOR_TRACE_COMMAND cmd, tbm_bufmgr bufmgr);
+
+char *
+_tarce_status_to_str(WL_TBM_MONITOR_TRACE_STATUS status);
 
 #ifdef  __cplusplus
 }

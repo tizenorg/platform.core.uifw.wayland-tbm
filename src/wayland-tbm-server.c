@@ -45,10 +45,12 @@ DEALINGS IN THE SOFTWARE.
 
 #include "wayland-tbm-int.h"
 
+WL_TBM_MONITOR_TRACE_STATUS trace_status;
+
 //#define WL_TBM_SERVER_DEBUG
 //#define DEBUG_TRACE
 #ifdef DEBUG_TRACE
-#define WL_TBM_TRACE(fmt, ...)   fprintf (stderr, "[WL_TBM_S(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
+#define WL_TBM_TRACE(fmt, ...)   if (trace_status == WL_TBM_MONITOR_TRACE_STATUS_ON) fprintf (stderr, "[WL_TBM_S(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #else
 #define WL_TBM_TRACE(fmt, ...)
 #endif
@@ -317,7 +319,11 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 		if (command == WL_TBM_MONITOR_COMMAND_SHOW) {
 			tbm_bufmgr_debug_show(tbm_srv->bufmgr);
 		} else if (command == WL_TBM_MONITOR_COMMAND_TRACE) {
-			WL_TBM_LOG("[%s]: TRACE NOT IMPLEMENTED.\n", __func__);
+			if (trace_command == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
+				WL_TBM_DEBUG("server: trace status: %s\n",
+							_tarce_status_to_str(trace_status));
+			else
+				_change_trace_status(&trace_status, trace_command, tbm_srv->bufmgr);
 		} else
 			wl_resource_post_error(resource, WL_TBM_ERROR_INVALID_FORMAT,
 					       "invalid format");
@@ -336,9 +342,22 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 			}
 			tbm_bufmgr_debug_show(tbm_srv->bufmgr);
 		} else if (command == WL_TBM_MONITOR_COMMAND_TRACE) {
-			wl_tbm_send_monitor_client_tbm_bo(resource, command, trace_command, target,
-							  pid);
-			WL_TBM_LOG("[%s]: TRACE NOT IMPLEMENTED.\n", __func__);
+			/* send the events to all client containing wl_tbm resource except for the wayland-tbm-monitor(requestor). */
+			if (!wl_list_empty(&tbm_srv->cresource_list)) {
+				wl_list_for_each_safe(c_res, tmp_res, &tbm_srv->cresource_list, link) {
+					/* skip the requestor (wayland-tbm-monitor */
+					if (c_res->resource == resource)
+						continue;
+
+					wl_tbm_send_monitor_client_tbm_bo(c_res->resource, command, trace_command,
+									  target, pid);
+				}
+			}
+			if (trace_command == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
+				WL_TBM_DEBUG("server: trace status: %s\n",
+							_tarce_status_to_str(trace_status));
+			else
+				_change_trace_status(&trace_status, trace_command, tbm_srv->bufmgr);
 		} else
 			wl_resource_post_error(resource, WL_TBM_ERROR_INVALID_FORMAT,
 					       "invalid format");
@@ -647,6 +666,8 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name,
 	struct wayland_tbm_server *tbm_srv;
 
 	_wayland_tbm_check_dlog_enable();
+
+	trace_status = WL_TBM_MONITOR_TRACE_STATUS_UNREGISTERED;
 
 	tbm_srv = calloc(1, sizeof(struct wayland_tbm_server));
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_srv != NULL, NULL);
