@@ -50,6 +50,8 @@ struct wayland_tbm_client {
 
 	tbm_bufmgr bufmgr;
 
+	WL_TBM_MONITOR_TRACE_STATUS trace_state;
+
 	struct wl_list queue_info_list;
 };
 
@@ -83,9 +85,11 @@ struct wayland_tbm_surface_queue {
 	struct wl_list link;
 };
 
+WL_TBM_MONITOR_TRACE_STATUS trace_status;
+
 //#define DEBUG_TRACE
 #ifdef DEBUG_TRACE
-#define WL_TBM_TRACE(fmt, ...)   fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
+#define WL_TBM_TRACE(fmt, ...)   if (trace_status == WL_TBM_MONITOR_TRACE_STATUS_ON) fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #else
 #define WL_TBM_TRACE(fmt, ...)
 #endif
@@ -100,6 +104,11 @@ handle_tbm_monitor_client_tbm_bo(void *data,
 {
 	struct wayland_tbm_client *tbm_client = (struct wayland_tbm_client *)data;
 
+#ifdef DEBUG_TRACE
+	WL_TBM_TRACE("command=%d, trace_command=%d, target=%d, pid=%d.\n",
+		   command, trace_command, target, pid);
+#endif
+
 	if (command == WL_TBM_MONITOR_COMMAND_SHOW) {
 		if (target == WL_TBM_MONITOR_TARGET_CLIENT) {
 			if (getpid() == pid)
@@ -111,7 +120,22 @@ handle_tbm_monitor_client_tbm_bo(void *data,
 				   target);
 		}
 	} else if (command == WL_TBM_MONITOR_COMMAND_TRACE) {
-		WL_TBM_LOG("[%s]: TRACE is not implemented.\n", __func__);
+		if (target == WL_TBM_MONITOR_TARGET_CLIENT) {
+			if (getpid() == pid) {
+				if (trace_command == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
+					WL_TBM_DEBUG("clinet(%d): trace status: %s\n", getpid(), _tarce_status_to_str(trace_status));
+				else
+					_change_trace_status(&trace_status, trace_command, tbm_client->bufmgr);
+			}
+		} else if (target == WL_TBM_MONITOR_TARGET_ALL) {
+			if (trace_command == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
+				WL_TBM_DEBUG("clinet(%d): trace status: %s\n", getpid(), _tarce_status_to_str(trace_status));
+			else
+				_change_trace_status(&trace_status, trace_command, tbm_client->bufmgr);
+		} else {
+			WL_TBM_LOG("[%s]: Error target is not available. target = %d\n", __func__,
+				   target);
+		}
 	} else {
 		WL_TBM_LOG("[%s]: Error command is not available. command = %d\n", __func__,
 			   command);
@@ -163,6 +187,8 @@ wayland_tbm_client_init(struct wl_display *display)
 
 	_wayland_tbm_check_dlog_enable();
 
+	trace_status = WL_TBM_MONITOR_TRACE_STATUS_UNREGISTERED;
+	
 	tbm_client = calloc(1, sizeof(struct wayland_tbm_client));
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_client != NULL, NULL);
 

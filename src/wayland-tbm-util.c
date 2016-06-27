@@ -38,6 +38,40 @@ DEALINGS IN THE SOFTWARE.
 int bDlog;
 #endif
 
+char * _tarce_status_to_str(WL_TBM_MONITOR_TRACE_STATUS status)
+{
+	if (status == WL_TBM_MONITOR_TRACE_STATUS_OFF)
+		return "off";
+	else if (status == WL_TBM_MONITOR_TRACE_STATUS_ON)
+		return "on";
+	else if (status == WL_TBM_MONITOR_TRACE_STATUS_UNREGISTERED)
+		return "unregistered";
+	return "unknown";
+}
+
+void _change_trace_status(WL_TBM_MONITOR_TRACE_STATUS * curr_status, WL_TBM_MONITOR_TRACE_COMMAND cmd, tbm_bufmgr bufmgr)
+{
+	if (cmd == WL_TBM_MONITOR_TRACE_COMMAND_ON) {
+		if (*curr_status == WL_TBM_MONITOR_TRACE_STATUS_OFF) {
+			tbm_bufmgr_debug_trace(bufmgr, 1);
+			*curr_status = WL_TBM_MONITOR_TRACE_STATUS_ON;
+		}
+	} else if (cmd == WL_TBM_MONITOR_TRACE_COMMAND_OFF) {
+		if (*curr_status == WL_TBM_MONITOR_TRACE_STATUS_ON) {
+			tbm_bufmgr_debug_trace(bufmgr, 0);
+			*curr_status = WL_TBM_MONITOR_TRACE_STATUS_OFF;
+		}
+	} else if (cmd == WL_TBM_MONITOR_TRACE_COMMAND_REGISTER) {
+		if (*curr_status == WL_TBM_MONITOR_TRACE_STATUS_UNREGISTERED) {
+			tbm_bufmgr_debug_trace(bufmgr, 0);
+			*curr_status = WL_TBM_MONITOR_TRACE_STATUS_OFF;
+		}
+	} else if (cmd == WL_TBM_MONITOR_TRACE_COMMAND_UNREGISTER) {
+		*curr_status = WL_TBM_MONITOR_TRACE_STATUS_UNREGISTERED;
+		tbm_bufmgr_debug_trace(bufmgr, 0);
+	}
+}
+
 void
 _wayland_tbm_util_get_appname_brief(char *brief)
 {
