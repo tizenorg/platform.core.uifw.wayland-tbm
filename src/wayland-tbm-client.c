@@ -425,7 +425,7 @@ _wayland_tbm_client_queue_destory_attach_bufs(struct wayland_tbm_surface_queue *
 		WL_TBM_TRACE("pid:%d wl_buffer:%p tbm_surface:%p\n", getpid(), buffer->wl_buffer, buffer->tbm_surface);
 #endif
 
-		if (!buffer->allocated && !buffer->reuse) {
+		if (buffer->wl_buffer && !buffer->allocated && !buffer->reuse) {
 #ifdef DEBUG_TRACE
 			WL_TBM_TRACE("destroy the wl_buffer:%p\n", buffer->wl_buffer);
 #endif
