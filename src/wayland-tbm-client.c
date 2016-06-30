@@ -87,7 +87,7 @@ struct wayland_tbm_surface_queue {
 
 WL_TBM_MONITOR_TRACE_STATUS trace_status;
 
-//#define DEBUG_TRACE
+#define DEBUG_TRACE
 #ifdef DEBUG_TRACE
 #define WL_TBM_TRACE(fmt, ...)   if (trace_status == WL_TBM_MONITOR_TRACE_STATUS_ON) fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #else
