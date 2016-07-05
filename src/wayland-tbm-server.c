@@ -101,12 +101,6 @@ struct wayland_tbm_client_queue {
 	struct wl_list link;
 };
 
-static const int key_wl_tbm_queue;
-#define KEY_WL_TBM_QUEUE ((unsigned long)&key_wl_tbm_queue)
-
-const static int key_tbm_buffer;
-#define KEY_TBM_BUFFER	((unsigned long)&key_tbm_buffer)
-
 static void
 _wayland_tbm_server_buffer_destory(struct wl_resource *wl_buffer)
 {
@@ -127,13 +121,11 @@ _wayland_tbm_server_buffer_destory(struct wl_resource *wl_buffer)
 	if (cqueue) {
 		if (tbm_buffer->destroy_cb)
 			tbm_buffer->destroy_cb(tbm_buffer->surface, tbm_buffer->user_data);
-		tbm_surface_internal_delete_user_data(tbm_buffer->surface, KEY_TBM_BUFFER);
 		tbm_surface_internal_unref(tbm_buffer->surface);
 
 		wl_list_remove(&tbm_buffer->link);
 		free(tbm_buffer);
 	} else {
-		tbm_surface_internal_delete_user_data(tbm_buffer->surface, KEY_TBM_BUFFER);
 		tbm_surface_internal_unref(tbm_buffer->surface);
 		free(tbm_buffer);
 	}
@@ -184,10 +176,6 @@ _wayland_tbm_server_tbm_buffer_create(struct wl_resource *wl_tbm,
 	tbm_buffer->flags = flags;
 	tbm_buffer->surface = surface;
 	tbm_buffer->client = client;
-
-	tbm_surface_internal_add_user_data(surface, KEY_TBM_BUFFER, NULL);
-	tbm_surface_internal_set_user_data(surface, KEY_TBM_BUFFER,
-					   (void *)tbm_buffer);
 
 	/* set the debug_pid to the surface for debugging */
 	if (!wl_list_empty(&tbm_srv->cresource_list)) {
