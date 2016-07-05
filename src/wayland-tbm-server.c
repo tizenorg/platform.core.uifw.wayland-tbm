@@ -107,12 +107,13 @@ static const int key_wl_tbm_queue;
 const static int key_tbm_buffer;
 #define KEY_TBM_BUFFER	((unsigned long)&key_tbm_buffer)
 
-static void _wayland_tbm_server_tbm_buffer_destroy(struct wayland_tbm_buffer *tbm_buffer);
-
 static void
 _wayland_tbm_server_buffer_destory(struct wl_resource *wl_buffer)
 {
 	struct wayland_tbm_buffer *tbm_buffer = wl_resource_get_user_data(wl_buffer);
+	struct wayland_tbm_client_queue *cqueue = NULL;
+
+	WL_TBM_RETURN_IF_FAIL(tbm_buffer != NULL);
 
 #ifdef DEBUG_TRACE
 	pid_t pid = 0; uid_t uid = 0; gid_t gid = 0;
@@ -120,7 +121,22 @@ _wayland_tbm_server_buffer_destory(struct wl_resource *wl_buffer)
 		wl_client_get_credentials(tbm_buffer->client, &pid, &uid, &gid);
 	WL_TBM_TRACE("            pid:%d tbm_surface:%p\n", pid, tbm_buffer->surface);
 #endif
-	_wayland_tbm_server_tbm_buffer_destroy(tbm_buffer);
+
+	cqueue = tbm_buffer->cqueue;
+
+	if (cqueue) {
+		if (tbm_buffer->destroy_cb)
+			tbm_buffer->destroy_cb(tbm_buffer->surface, tbm_buffer->user_data);
+		tbm_surface_internal_delete_user_data(tbm_buffer->surface, KEY_TBM_BUFFER);
+		tbm_surface_internal_unref(tbm_buffer->surface);
+
+		wl_list_remove(&tbm_buffer->link);
+		free(tbm_buffer);
+	} else {
+		tbm_surface_internal_delete_user_data(tbm_buffer->surface, KEY_TBM_BUFFER);
+		tbm_surface_internal_unref(tbm_buffer->surface);
+		free(tbm_buffer);
+	}
 }
 
 static void
@@ -138,29 +154,6 @@ _wayland_tbm_server_tbm_buffer_impl_destroy(struct wl_client *client, struct wl_
 static const struct wl_buffer_interface _wayland_tbm_buffer_impementation = {
 	_wayland_tbm_server_tbm_buffer_impl_destroy
 };
-
-static void
-_wayland_tbm_server_tbm_buffer_destroy(struct wayland_tbm_buffer *tbm_buffer)
-{
-	WL_TBM_RETURN_IF_FAIL(tbm_buffer != NULL);
-
-	struct wayland_tbm_client_queue *cqueue = tbm_buffer->cqueue;
-
-	if (cqueue) {
-		if (tbm_buffer->destroy_cb)
-			tbm_buffer->destroy_cb(tbm_buffer->surface, tbm_buffer->user_data);
-		tbm_surface_internal_delete_user_data(tbm_buffer->surface, KEY_TBM_BUFFER);
-		tbm_surface_internal_unref(tbm_buffer->surface);
-
-		wl_list_remove(&tbm_buffer->link);
-		free(tbm_buffer);
-	} else {
-		tbm_surface_internal_delete_user_data(tbm_buffer->surface, KEY_TBM_BUFFER);
-		tbm_surface_internal_unref(tbm_buffer->surface);
-		free(tbm_buffer);
-		tbm_buffer = NULL;
-	}
-}
 
 static struct wayland_tbm_buffer *
 _wayland_tbm_server_tbm_buffer_create(struct wl_resource *wl_tbm,
@@ -939,7 +932,7 @@ wayland_tbm_server_client_queue_export_buffer(struct wayland_tbm_client_queue *c
 	if(!_wayland_tbm_server_wl_tbm_queue_send_surface(cqueue,
 				tbm_buffer->wl_buffer, surface, flags)) {
 		WL_TBM_S_LOG("Failed to send the surface to the wl_tbm_queue\n");
-		_wayland_tbm_server_tbm_buffer_destroy(tbm_buffer);
+		wl_resource_destroy(tbm_buffer->wl_buffer);
 		tbm_surface_internal_unref(surface);
 		return NULL;
 	}
