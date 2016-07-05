@@ -27,20 +27,20 @@
   </copyright>
 
   <interface name="wl_tbm_test" version="1">
-  	<request name="create_surface">
-  		<arg name="surface" type="new_id" interface="wl_test_surface"/>
-  	</request>
-  	<request name="set_active_queue">
-  		<arg name="surface" type="object" interface="wl_test_surface"/>
-  	</request>
+    <request name="create_surface">
+      <arg name="surface" type="new_id" interface="wl_test_surface"/>
+    </request>
+    <request name="set_active_queue">
+      <arg name="surface" type="object" interface="wl_test_surface"/>
+    </request>
   </interface>
 
   <interface name="wl_test_surface" version="1">
-  	<request name="destroy" type="destructor">
-  	</request>
-  	<request name="attach">
-  		<arg name="buffer" type="object" interface="wl_buffer"/>
-  	</request>
+    <request name="destroy" type="destructor">
+    </request>
+    <request name="attach">
+      <arg name="buffer" type="object" interface="wl_buffer"/>
+    </request>
     <request name="frame">
       <arg name="callback" type="new_id" interface="wl_callback"/>
     </request>
