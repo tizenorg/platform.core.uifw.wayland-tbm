@@ -30,8 +30,13 @@ DEALINGS IN THE SOFTWARE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <limits.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <tbm_surface.h>
+#include <tbm_surface_internal.h>
 #include "wayland-tbm-int.h"
 
 #ifdef HAVE_DLOG
@@ -141,3 +146,46 @@ _wayland_tbm_check_dlog_enable(void)
     return;
 }
 
+char *
+_wayland_tbm_dump_directory_make(void)
+{
+	char *fullpath;
+	time_t timer;
+	struct tm *t, *buf;
+	char appname[255] = {'\0'};
+
+	timer = time(NULL);
+
+	buf = calloc(1, sizeof(struct tm));
+	if (buf == 0)
+		return NULL;
+
+	t = localtime_r(&timer, buf);
+	if (!t) {
+		free(buf);
+		return NULL;
+	}
+
+	fullpath = (char *) calloc(1, PATH_MAX * sizeof(char));
+	if (!fullpath) {
+		free(buf);
+		return NULL;
+	}
+
+	_wayland_tbm_util_get_appname_from_pid(getpid(), appname);
+
+	_wayland_tbm_util_get_appname_brief(appname);
+
+
+	snprintf(fullpath, PATH_MAX, "/tmp/tbm_dump_%s_%04d%02d%02d.%02d%02d%02d", appname, t->tm_year + 1900,
+			t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec);
+
+	free(buf);
+
+	if ((mkdir(fullpath, 0755)) < 0) {
+		free(fullpath);
+		return NULL;
+	}
+
+	return fullpath;
+}
