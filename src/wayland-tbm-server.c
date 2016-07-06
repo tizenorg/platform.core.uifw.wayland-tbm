@@ -50,7 +50,7 @@ WL_TBM_MONITOR_TRACE_STATUS trace_status;
 //#define WL_TBM_SERVER_DEBUG
 //#define DEBUG_TRACE
 #ifdef DEBUG_TRACE
-#define WL_TBM_TRACE(fmt, ...)   if (trace_status == WL_TBM_MONITOR_TRACE_STATUS_ON) fprintf (stderr, "[WL_TBM_S(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
+#define WL_TBM_TRACE(fmt, ...)   if (trace_status == WL_TBM_MONITOR_TRACE_STATUS_ON) fprintf(stderr, "[WL_TBM_S(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #else
 #define WL_TBM_TRACE(fmt, ...)
 #endif
@@ -224,10 +224,26 @@ static const struct wl_tbm_queue_interface _wayland_tbm_queue_impementation = {
 };
 
 static void
+_wayland_tbm_server_dump(struct wayland_tbm_server *tbm_srv, WL_TBM_MONITOR_DUMP_COMMAND cmd, WL_TBM_MONITOR_DUMP_TYPE type)
+{
+	if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_SNAPSHOT) {
+		char * path = _wayland_tbm_dump_directory_make();
+		if (path) {
+			tbm_surface_internal_dump_all(path);
+			free (path);
+		}
+	}
+	else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_ON)
+		WL_TBM_DEBUG("WL_TBM_MONITOR_DUMP_COMMAND_ON isn't implemented yet\n");
+	else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_OFF)
+		WL_TBM_DEBUG("WL_TBM_MONITOR_DUMP_COMMAND_OFF isn't implemented yet\n");
+}
+
+static void
 _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 		struct wl_resource *resource,
 		int32_t command,
-		int32_t trace_command,
+		int32_t subcommand,
 		int32_t target,
 		int32_t pid)
 {
@@ -236,8 +252,8 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 	int i = 0;
 
 #ifdef DEBUG_TRACE
-	WL_TBM_TRACE("command=%d, trace_command=%d, target=%d, pid=%d.\n",
-		   command, trace_command, target, pid);
+	WL_TBM_TRACE("command=%d, subcommand=%x, target=%d, pid=%d.\n",
+		   command, subcommand, target, pid);
 #endif
 
 	if (command == WL_TBM_MONITOR_COMMAND_LIST) {
@@ -278,7 +294,7 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 				if (c_res->resource == resource)
 					continue;
 
-				wl_tbm_send_monitor_client_tbm_bo(c_res->resource, command, trace_command,
+				wl_tbm_send_monitor_client_tbm_bo(c_res->resource, command, subcommand,
 								  target, pid);
 			}
 		}
@@ -286,11 +302,13 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 		if (command == WL_TBM_MONITOR_COMMAND_SHOW) {
 			tbm_bufmgr_debug_show(tbm_srv->bufmgr);
 		} else if (command == WL_TBM_MONITOR_COMMAND_TRACE) {
-			if (trace_command == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
+			if (subcommand == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
 				WL_TBM_DEBUG("server: trace status: %s\n",
 							_tarce_status_to_str(trace_status));
 			else
-				_change_trace_status(&trace_status, trace_command, tbm_srv->bufmgr);
+				_change_trace_status(&trace_status, subcommand, tbm_srv->bufmgr);
+		} else if (command == WL_TBM_MONITOR_COMMAND_DUMP) {
+			_wayland_tbm_server_dump(tbm_srv, subcommand & 0xFF, subcommand >> 16 & 0xFF);
 		} else
 			wl_resource_post_error(resource, WL_TBM_ERROR_INVALID_FORMAT,
 					       "invalid format");
@@ -303,7 +321,7 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 					if (c_res->resource == resource)
 						continue;
 
-					wl_tbm_send_monitor_client_tbm_bo(c_res->resource, command, trace_command,
+					wl_tbm_send_monitor_client_tbm_bo(c_res->resource, command, subcommand,
 									  target, pid);
 				}
 			}
@@ -316,15 +334,29 @@ _wayland_tbm_server_impl_request_tbm_monitor(struct wl_client *client,
 					if (c_res->resource == resource)
 						continue;
 
-					wl_tbm_send_monitor_client_tbm_bo(c_res->resource, command, trace_command,
+					wl_tbm_send_monitor_client_tbm_bo(c_res->resource, command, subcommand,
 									  target, pid);
 				}
 			}
-			if (trace_command == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
+			if (subcommand == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
 				WL_TBM_DEBUG("server: trace status: %s\n",
 							_tarce_status_to_str(trace_status));
 			else
-				_change_trace_status(&trace_status, trace_command, tbm_srv->bufmgr);
+				_change_trace_status(&trace_status, subcommand, tbm_srv->bufmgr);
+		} else if (command == WL_TBM_MONITOR_COMMAND_DUMP) {
+			/* send the events to all client containing wl_tbm resource except for the wayland-tbm-monitor(requestor). */
+			if (!wl_list_empty(&tbm_srv->cresource_list)) {
+				wl_list_for_each_safe(c_res, tmp_res, &tbm_srv->cresource_list, link) {
+					/* skip the requestor (wayland-tbm-monitor */
+					if (c_res->resource == resource)
+						continue;
+
+					wl_tbm_send_monitor_client_tbm_bo(c_res->resource, command, subcommand,
+									  target, pid);
+				}
+			}
+			_wayland_tbm_server_dump(tbm_srv, subcommand & 0xFF, subcommand >> 16 & 0xFF);
+
 		} else
 			wl_resource_post_error(resource, WL_TBM_ERROR_INVALID_FORMAT,
 					       "invalid format");

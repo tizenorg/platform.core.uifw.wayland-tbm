@@ -89,16 +89,32 @@ WL_TBM_MONITOR_TRACE_STATUS trace_status;
 
 //#define DEBUG_TRACE
 #ifdef DEBUG_TRACE
-#define WL_TBM_TRACE(fmt, ...)   if (trace_status == WL_TBM_MONITOR_TRACE_STATUS_ON) fprintf (stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
+#define WL_TBM_TRACE(fmt, ...)   if (trace_status == WL_TBM_MONITOR_TRACE_STATUS_ON) fprintf(stderr, "[WL_TBM_C(%d):%s] " fmt, getpid(), __func__, ##__VA_ARGS__)
 #else
 #define WL_TBM_TRACE(fmt, ...)
 #endif
 
 static void
+_wayland_tbm_client_dump(struct wayland_tbm_client * tbm_client, WL_TBM_MONITOR_DUMP_COMMAND cmd, WL_TBM_MONITOR_DUMP_TYPE type)
+{
+	if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_SNAPSHOT) {
+		char * path = _wayland_tbm_dump_directory_make();
+		if (path) {
+			tbm_surface_internal_dump_all(path);
+			free(path);
+		}
+	}
+	else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_ON)
+		WL_TBM_DEBUG("WL_TBM_MONITOR_DUMP_COMMAND_ON isn't implemented yet\n");
+	else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_OFF)
+		WL_TBM_DEBUG("WL_TBM_MONITOR_DUMP_COMMAND_OFF isn't implemented yet\n");
+}
+
+static void
 handle_tbm_monitor_client_tbm_bo(void *data,
 				 struct wl_tbm *wl_tbm,
 				 int32_t command,
-				 int32_t trace_command,
+				 int32_t subcommand,
 				 int32_t target,
 				 int32_t pid)
 {
@@ -106,7 +122,7 @@ handle_tbm_monitor_client_tbm_bo(void *data,
 
 #ifdef DEBUG_TRACE
 	WL_TBM_TRACE("command=%d, trace_command=%d, target=%d, pid=%d.\n",
-		   command, trace_command, target, pid);
+		   command, subcommand, target, pid);
 #endif
 
 	if (command == WL_TBM_MONITOR_COMMAND_SHOW) {
@@ -122,16 +138,26 @@ handle_tbm_monitor_client_tbm_bo(void *data,
 	} else if (command == WL_TBM_MONITOR_COMMAND_TRACE) {
 		if (target == WL_TBM_MONITOR_TARGET_CLIENT) {
 			if (getpid() == pid) {
-				if (trace_command == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
+				if (subcommand == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
 					WL_TBM_DEBUG("clinet(%d): trace status: %s\n", getpid(), _tarce_status_to_str(trace_status));
 				else
-					_change_trace_status(&trace_status, trace_command, tbm_client->bufmgr);
+					_change_trace_status(&trace_status, subcommand, tbm_client->bufmgr);
 			}
 		} else if (target == WL_TBM_MONITOR_TARGET_ALL) {
-			if (trace_command == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
+			if (subcommand == WL_TBM_MONITOR_TRACE_COMMAND_STATUS)
 				WL_TBM_DEBUG("clinet(%d): trace status: %s\n", getpid(), _tarce_status_to_str(trace_status));
 			else
-				_change_trace_status(&trace_status, trace_command, tbm_client->bufmgr);
+				_change_trace_status(&trace_status, subcommand, tbm_client->bufmgr);
+		} else {
+			WL_TBM_LOG("[%s]: Error target is not available. target = %d\n", __func__,
+				   target);
+		}
+	} else if (command == WL_TBM_MONITOR_COMMAND_DUMP) {
+		if (target == WL_TBM_MONITOR_TARGET_CLIENT) {
+			if (getpid() == pid)
+				_wayland_tbm_client_dump(tbm_client, subcommand & 0xFF, subcommand >> 16 & 0xFF);
+		} else if (target == WL_TBM_MONITOR_TARGET_ALL) {
+			_wayland_tbm_client_dump(tbm_client, subcommand & 0xFF, subcommand >> 16 & 0xFF);
 		} else {
 			WL_TBM_LOG("[%s]: Error target is not available. target = %d\n", __func__,
 				   target);
@@ -140,7 +166,6 @@ handle_tbm_monitor_client_tbm_bo(void *data,
 		WL_TBM_LOG("[%s]: Error command is not available. command = %d\n", __func__,
 			   command);
 	}
-
 }
 
 static const struct wl_tbm_listener wl_tbm_client_listener = {
