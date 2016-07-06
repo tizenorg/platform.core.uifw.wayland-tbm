@@ -582,6 +582,8 @@ _wayland_tbm_server_destroy_resource(struct wl_resource *wl_tbm)
 
 	/* remove the client resources to the list */
 	tbm_srv = wl_resource_get_user_data(wl_tbm);
+	if (!tbm_srv) return;
+
 	if (!wl_list_empty(&tbm_srv->cresource_list)) {
 		wl_list_for_each_safe(c_res, tmp_res, &tbm_srv->cresource_list, link) {
 			if (c_res->resource == wl_tbm) {
@@ -679,7 +681,20 @@ wayland_tbm_server_init(struct wl_display *display, const char *device_name,
 void
 wayland_tbm_server_deinit(struct wayland_tbm_server *tbm_srv)
 {
+	struct wayland_tbm_client_resource *c_res = NULL, *tmp_res;
+
 	WL_TBM_RETURN_IF_FAIL(tbm_srv != NULL);
+
+	if (!wl_list_empty(&tbm_srv->cresource_list)) {
+		wl_list_for_each_safe(c_res, tmp_res, &tbm_srv->cresource_list, link) {
+			wl_list_remove(&c_res->link);
+			if (c_res->app_name)
+				free(c_res->app_name);
+
+			wl_resource_set_user_data(c_res->resource, NULL);
+			free(c_res);
+		}
+	}
 
 	wl_global_destroy(tbm_srv->wl_tbm_global);
 
