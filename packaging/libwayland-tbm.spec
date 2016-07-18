@@ -52,6 +52,8 @@ Development header files for use with Wayland protocol
 %setup -q
 cp %{SOURCE1001} .
 
+%restore_fcommon
+
 %build
 %reconfigure CFLAGS="${CFLAGS} -Wall -Werror" \
              LDFLAGS="${LDFLAGS} -Wl,--hash-style=both -Wl,--as-needed"
