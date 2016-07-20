@@ -66,6 +66,9 @@ struct wayland_tbm_server {
 
 	struct wl_list cqueue_list; /* for scanout buffer */
 	struct wl_list cresource_list; /* for tbm monitor */
+
+	tbm_surface_dump_type dump_type;
+	char * path;
 };
 
 struct wayland_tbm_buffer {
@@ -126,7 +129,7 @@ _wayland_tbm_server_tbm_buffer_impl_destroy(struct wl_client *client, struct wl_
 	WL_TBM_TRACE("   pid:%d wl_buffer destoroy.\n", pid);
 #endif
 
-    wl_resource_destroy(wl_buffer);
+	wl_resource_destroy(wl_buffer);
 }
 
 static const struct wl_buffer_interface _wayland_tbm_buffer_impementation = {
@@ -156,8 +159,8 @@ _wayland_tbm_server_tbm_buffer_create(struct wl_resource *wl_tbm,
 	}
 
 	wl_resource_set_implementation(tbm_buffer->wl_buffer,
-				       (void (* *)(void)) &_wayland_tbm_buffer_impementation,
-				       tbm_buffer, _wayland_tbm_server_buffer_destory);
+									(void (**)(void)) &_wayland_tbm_buffer_impementation,
+									tbm_buffer, _wayland_tbm_server_buffer_destory);
 
 	tbm_buffer->flags = flags;
 	tbm_buffer->surface = surface;
@@ -230,13 +233,30 @@ _wayland_tbm_server_dump(struct wayland_tbm_server *tbm_srv, WL_TBM_MONITOR_DUMP
 		char * path = _wayland_tbm_dump_directory_make();
 		if (path) {
 			tbm_surface_internal_dump_all(path);
-			free (path);
+			free(path);
+		}
+	} else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_ON) {
+		if (tbm_srv->dump_type) {
+			tbm_srv->path = _wayland_tbm_dump_directory_make();
+			if (tbm_srv->path)
+				tbm_surface_internal_dump_start_with_type(tbm_srv->path, 20, tbm_srv->dump_type);
+		}
+	} else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_OFF) {
+		tbm_surface_internal_dump_end();
+		if (tbm_srv->path) {
+			free(tbm_srv->path);
+			tbm_srv->path = NULL;
+		}
+	} else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_REGISTER) {
+		tbm_srv->dump_type |= type;
+	} else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_UNREGISTER) {
+		tbm_srv->dump_type = 0;
+		tbm_surface_internal_dump_end();
+		if (tbm_srv->path) {
+			free(tbm_srv->path);
+			tbm_srv->path = NULL;
 		}
 	}
-	else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_ON)
-		WL_TBM_DEBUG("WL_TBM_MONITOR_DUMP_COMMAND_ON isn't implemented yet\n");
-	else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_OFF)
-		WL_TBM_DEBUG("WL_TBM_MONITOR_DUMP_COMMAND_OFF isn't implemented yet\n");
 }
 
 static void

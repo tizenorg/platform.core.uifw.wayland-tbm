@@ -52,6 +52,9 @@ struct wayland_tbm_client {
 
 	WL_TBM_MONITOR_TRACE_STATUS trace_state;
 
+	tbm_surface_dump_type dump_type;
+	char * path;
+
 	struct wl_list queue_info_list;
 };
 
@@ -103,11 +106,28 @@ _wayland_tbm_client_dump(struct wayland_tbm_client * tbm_client, WL_TBM_MONITOR_
 			tbm_surface_internal_dump_all(path);
 			free(path);
 		}
+	} else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_ON) {
+		if (tbm_client->dump_type) {
+			tbm_client->path = _wayland_tbm_dump_directory_make();
+			if (tbm_client->path)
+				tbm_surface_internal_dump_start_with_type(tbm_client->path, 20, tbm_client->dump_type);
+		}
+	} else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_OFF) {
+		tbm_surface_internal_dump_end();
+		if (tbm_client->path) {
+			free(tbm_client->path);
+			tbm_client->path = NULL;
+		}
+	} else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_REGISTER) {
+		tbm_client->dump_type |= type;
+	} else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_UNREGISTER) {
+		tbm_client->dump_type = 0;
+		tbm_surface_internal_dump_end();
+		if (tbm_client->path) {
+			free(tbm_client->path);
+			tbm_client->path = NULL;
+		}
 	}
-	else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_ON)
-		WL_TBM_DEBUG("WL_TBM_MONITOR_DUMP_COMMAND_ON isn't implemented yet\n");
-	else if (cmd == WL_TBM_MONITOR_DUMP_COMMAND_OFF)
-		WL_TBM_DEBUG("WL_TBM_MONITOR_DUMP_COMMAND_OFF isn't implemented yet\n");
 }
 
 static void
@@ -390,7 +410,7 @@ wayland_tbm_client_create_buffer(struct wayland_tbm_client *tbm_client,
 			close(bufs[i]);
 	}
 
-    wl_buffer_set_user_data(wl_buffer, surface);
+	wl_buffer_set_user_data(wl_buffer, surface);
 
 #ifdef DEBUG_TRACE
 	WL_TBM_TRACE("        pid:%d wl_buffer:%p tbm_surface:%p\n", getpid(), wl_buffer, surface);
@@ -596,7 +616,7 @@ __wayland_tbm_client_surface_alloc_cb(tbm_surface_queue_h surface_queue, void *d
 		int height = tbm_surface_queue_get_height(queue_info->tbm_queue);
 		int format = tbm_surface_queue_get_format(queue_info->tbm_queue);
 
-        /* ref.. pair of __wayland_tbm_client_surface_free_cb */
+		/* ref.. pair of __wayland_tbm_client_surface_free_cb */
 		surface = tbm_surface_internal_create_with_flags(width,
 							height,
 							format,
