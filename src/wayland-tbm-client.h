@@ -54,6 +54,10 @@ void
 wayland_tbm_client_destroy_buffer(struct wayland_tbm_client *tbm_client,
 				  struct wl_buffer *buffer);
 
+void
+wayland_tbm_client_set_sync_timeline(struct wayland_tbm_client *tbm_client,
+								struct wl_buffer *buffer, int32_t timeline);
+
 void *
 wayland_tbm_client_get_bufmgr(struct wayland_tbm_client *tbm_client);
 

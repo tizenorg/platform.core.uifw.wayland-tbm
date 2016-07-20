@@ -399,6 +399,16 @@ wayland_tbm_client_destroy_buffer(struct wayland_tbm_client *tbm_client,
 	wl_buffer_destroy(wl_buffer);
 }
 
+void
+wayland_tbm_client_set_sync_timeline(struct wayland_tbm_client *tbm_client,
+								struct wl_buffer *wl_buffer, int32_t timeline)
+{
+	WL_TBM_RETURN_IF_FAIL(tbm_client != NULL);
+	WL_TBM_RETURN_IF_FAIL(wl_buffer != NULL);
+
+	wl_tbm_set_sync_timeline(tbm_client->wl_tbm, wl_buffer, timeline);
+}
+
 void *
 wayland_tbm_client_get_bufmgr(struct wayland_tbm_client *tbm_client)
 {

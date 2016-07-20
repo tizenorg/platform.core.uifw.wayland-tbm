@@ -99,6 +99,11 @@
       <arg name="surface_queue" type="new_id" interface="wl_tbm_queue"/>
       <arg name="surface" type="object" interface="wl_surface"/>
     </request>
+
+	<request name="set_sync_timeline">
+		<arg name="buffer" type="object" interface="wl_buffer"/>
+		<arg name="timeline" type="fd"/>
+	</request>
   </interface>
 
   <interface name="wl_tbm_queue" version="1">
