@@ -115,12 +115,12 @@ _wl_tbm_trace_usage()
 static void
 _wl_tbm_dump_usage()
 {
-	WL_TBM_LOG("  dump : dump the tbm_bos\n");
+	WL_TBM_LOG("  dump : dump the tbm_surfaces\n");
 	WL_TBM_LOG("   usage : wayland-tbm-monitor dump [command]\n");
 	WL_TBM_LOG("    <command>\n");
-	WL_TBM_LOG("      snapshot client [pid]         : make dumps of all tbm_bos for the client with pid.\n");
-	WL_TBM_LOG("      snapshot server               : make dumps of all tbm_bos for the server.\n");
-	WL_TBM_LOG("      snapshot all                  : make dumps of all tbm_bos for all clients and server.\n");
+	WL_TBM_LOG("      snapshot client [pid]         : make dumps of all tbm_surfaces for the client with pid.\n");
+	WL_TBM_LOG("      snapshot server               : make dumps of all tbm_surfaces for the server.\n");
+	WL_TBM_LOG("      snapshot all                  : make dumps of all tbm_surfaces for all clients and server.\n");
 	WL_TBM_LOG("      on                            : turn on process of dumping.\n");
 	WL_TBM_LOG("      off                           : turn off process of dumping.\n");
 	WL_TBM_LOG("      register [type] client [pid]  : register the pid of client.\n");
@@ -129,14 +129,13 @@ _wl_tbm_dump_usage()
 	WL_TBM_LOG("      unregister client [pid]       : unregister the pid of client.\n");
 	WL_TBM_LOG("      unregister server             : unregister the server.\n");
 	WL_TBM_LOG("      unregister all                : unregister all clients and server.\n");
-	WL_TBM_LOG("      status                        : show the status of the dump setting values.\n");
 	WL_TBM_LOG("    <type>\n");
-	WL_TBM_LOG("      import                        : make dump when a tbm_bo is imported/exported.\n");
-	WL_TBM_LOG("      ref                           : make dump when a tbm_bo is ref/unref.\n");
-	WL_TBM_LOG("      map                           : make dump when a tbm_bo is mapped/unmapped.\n");
+	WL_TBM_LOG("      queue                         : make dump when a tbm_surface_queue state is changed.\n");
+	WL_TBM_LOG("      ref                           : make dump when a tbm_surface is ref/unref.\n");
+	WL_TBM_LOG("      map                           : make dump when a tbm_surface is mapped/unmapped.\n");
 	WL_TBM_LOG("    <examples>\n");
 	WL_TBM_LOG("      # wayland-tbm-monitor dump register map client 1234\n");
-	WL_TBM_LOG("      # wayland-tbm-monitor dump register import all\n");
+	WL_TBM_LOG("      # wayland-tbm-monitor dump register queue all\n");
 	WL_TBM_LOG("      # wayland-tbm-monitor dump unregister all\n");
 	WL_TBM_LOG("      # wayland-tbm-monitor dump snapshot all\n");
 	WL_TBM_LOG("      # wayland-tbm-monitor dump on\n");
@@ -184,8 +183,8 @@ static int
 _wl_tbm_select_dump_type_option(struct wayland_tbm_monitor *tbm_monitor, int argc,
 								char *argv[], int arg_pos)
 {
-	if (!strncmp(argv[arg_pos], "import", strlen(argv[arg_pos]) + 1))
-		tbm_monitor->options.dump_type = WL_TBM_MONITOR_DUMP_TYPE_IMPORT;
+	if (!strncmp(argv[arg_pos], "queue", strlen(argv[arg_pos]) + 1))
+		tbm_monitor->options.dump_type = WL_TBM_MONITOR_DUMP_TYPE_QUEUE;
 	else if (!strncmp(argv[arg_pos], "ref", strlen(argv[arg_pos]) + 1))
 		tbm_monitor->options.dump_type = WL_TBM_MONITOR_DUMP_TYPE_REF;
 	else if (!strncmp(argv[arg_pos], "map", strlen(argv[arg_pos]) + 1))
@@ -291,6 +290,11 @@ _wl_tbm_monitor_process_options(struct wayland_tbm_monitor *tbm_monitor,
 		}
 	} else if (!strncmp(argv[1], "dump", strlen(argv[1]) + 1)) {
 
+		if (argc < 3) {
+			_wl_tbm_dump_usage();
+			return 0;
+		}
+
 		tbm_monitor->options.command = WL_TBM_MONITOR_COMMAND_DUMP;
 
 		if (!strncmp(argv[2], "on", strlen(argv[2]) + 1)) {
@@ -365,9 +369,8 @@ main(int argc, char *argv[])
 	WL_TBM_RETURN_VAL_IF_FAIL(tbm_monitor != NULL, -1);
 
 	ret = _wl_tbm_monitor_process_options(tbm_monitor, argc, argv);
-	if (!ret) {
+	if (!ret)
 		goto finish;
-	}
 
 	tbm_monitor->dpy = wl_display_connect(NULL);
 	WL_TBM_GOTO_IF_FAIL(tbm_monitor->dpy != NULL, finish);
